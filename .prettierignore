@@ -1,0 +1,7 @@
+# Copied verbatim from source docs — keep byte-identical, don't reformat.
+docs/
+
+# Generated / machine-written files.
+pnpm-lock.yaml
+storybook-static
+dist
