@@ -11,17 +11,25 @@ import "./index.css";
 import { App } from "./App.tsx";
 import type { AppState } from "./App.types.ts";
 import { darkTheme } from "./theme.ts";
+import { createFaceTileId } from "./components/FaceSwatchBoard/FaceSwatchBoard.ids.ts";
 
 const initialState: AppState = {
   counter: { count: 0 },
   faceSwatchBoard: {
-    trayTileIds: ["h0e0m0", "h0e1m2", "h1e0m1", "h2e2m0"],
+    trayTileIds: [
+      createFaceTileId("h0e0m0"),
+      createFaceTileId("h0e1m2"),
+      createFaceTileId("h1e0m1"),
+      createFaceTileId("h2e2m0"),
+    ],
     slotTileId: null,
   },
 };
 
 const telescope: Telescope<AppState> = Telescope.of(initialState);
-const root = createRoot(document.getElementById("root")!);
+const rootEl = document.getElementById("root");
+if (!rootEl) throw new Error("Root element not found");
+const root = createRoot(rootEl);
 
 // Mirrors the original app's main.tsx: the root subscribes to the telescope's stream
 // once and re-renders imperatively on every emission. Components below this point only

@@ -3,6 +3,7 @@ import storybook from "eslint-plugin-storybook";
 
 import js from "@eslint/js";
 import globals from "globals";
+import lensflow from "eslint-plugin-lensflow";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -17,6 +18,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: {
+      lensflow,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },

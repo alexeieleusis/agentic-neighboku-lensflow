@@ -1,4 +1,4 @@
-import type { FaceSwatchBoardState } from "./FaceSwatchBoard.types";
+import type { FaceSwatchBoardState, FaceTileId } from "./FaceSwatchBoard.types";
 
 /**
  * Non-trivial tier (requirements.md §7.2.1): pure functions only, no React or telescope
@@ -10,14 +10,14 @@ export const SLOT_DROPPABLE_ID = "face-swatch-board-slot";
 
 export function canDropTile(
   state: FaceSwatchBoardState,
-  tileId: string,
+  tileId: FaceTileId,
 ): boolean {
   return state.slotTileId === null && state.trayTileIds.includes(tileId);
 }
 
 export function dropTile(
   state: FaceSwatchBoardState,
-  tileId: string,
+  tileId: FaceTileId,
 ): FaceSwatchBoardState {
   if (!canDropTile(state, tileId)) {
     return state;
@@ -40,6 +40,6 @@ export function returnSlotTile(
   };
 }
 
-export function faceTileImageSrc(tileId: string): string {
+export function faceTileImageSrc(tileId: FaceTileId): string {
   return `/faces/${tileId}.png`;
 }

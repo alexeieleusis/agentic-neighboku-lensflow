@@ -19,7 +19,7 @@ export function DraggableFaceTile(
 ): React.ReactElement {
   const draggable: DndKitDraggable = useDraggable({ id: props.id });
 
-  const style: CSSProperties = {
+  const style = {
     cursor: "grab",
     touchAction: "none",
     ...(draggable.transform
@@ -28,7 +28,7 @@ export function DraggableFaceTile(
           zIndex: draggable.isDragging ? 1 : undefined,
         }
       : {}),
-  };
+  } satisfies CSSProperties;
 
   return (
     <img

@@ -7,5 +7,12 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "happy-dom",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      reportsDirectory: "coverage",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.stories.tsx", "src/**/__tests__/**"],
+    },
   },
 });

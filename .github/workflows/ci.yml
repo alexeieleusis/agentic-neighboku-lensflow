@@ -26,3 +26,15 @@ jobs:
       - run: pnpm lint
 
       - run: pnpm test run
+
+      - name: Cache Storybook build
+        uses: actions/cache@v4
+        with:
+          path: storybook-static
+          key: storybook-${{ hashFiles('package.json', 'src/**') }}
+          restore-keys: |
+            storybook-
+
+      - name: Build Storybook
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: pnpm build-storybook

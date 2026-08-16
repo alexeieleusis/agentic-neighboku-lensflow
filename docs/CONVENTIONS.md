@@ -143,6 +143,77 @@ original majors; treat them as historical context, not the actual installed vers
   named in `requirements.md` §7.1, the warning doesn't fail `pnpm build`/`pnpm lint`/`pnpm test`,
   and switching isn't worth diverging from the pinned convention over a perf-only suggestion.
 
+## Updating eslint-plugin-lensflow
+
+`eslint-plugin-lensflow` (the LensFlow ESLint rules — see
+`docs/neighboku-ai-rebuild/00-overview.md`) is consumed as an unpublished git dependency, not from
+npm: `"eslint-plugin-lensflow": "github:alexeieleusis/lens-flow#path:/eslint-lensflow-plugin"` in
+`package.json`, tracking the sibling `lens-flow` repo's `main` branch. Rules run at `"warn"` via
+`eslint.lensflow.config.js` / `pnpm lint:lensflow`, separate from the main `pnpm lint`.
+
+**Syntax when pinning to a specific commit**: to combine a commit-ish with the `path:` subdirectory
+fragment, join them with `&`, not a second `#`:
+`github:alexeieleusis/lens-flow#<sha>&path:/eslint-lensflow-plugin`. A second `#` (e.g.
+`#<sha>#path:/eslint-lensflow-plugin`) is silently mis-parsed — pnpm treats everything after the
+*first* `#` (including the literal `path:/eslint-lensflow-plugin` suffix) as one committish to
+resolve, which of course doesn't exist as a ref, producing:
+`[ERROR] Could not resolve <sha>#path:/eslint-lensflow-plugin to a commit of
+https://github.com/alexeieleusis/lens-flow.git`. If you hit that error, check for a stray second
+`#` in the `package.json` dependency string before assuming the commit itself is missing or
+unpushed — verify the commit actually exists on the remote first with
+`git ls-remote https://github.com/alexeieleusis/lens-flow.git | grep <sha>` (having it locally in
+the sibling `~/development/lens-flow` clone is not sufficient; pnpm resolves against the GitHub
+remote, not any local clone) before debugging the dependency string.
+
+pnpm blocks build scripts (the plugin's `prepare` step, which builds `dist/` from source) for git
+dependencies by default (`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`) unless the exact resolved
+commit SHA is listed under `allowBuilds` in `pnpm-workspace.yaml`. Because that key embeds the SHA,
+it goes stale every time the dependency is updated.
+
+**To pick up new rule changes from `main`, run `pnpm update:lensflow`** (`scripts/update-lensflow.mjs`).
+It reads the latest `origin/main` commit from the sibling `~/development/lens-flow` clone (running
+`git fetch origin` there first; override the path with `LENS_FLOW_CLONE_PATH`), rewrites the SHA in
+both `package.json` and `pnpm-workspace.yaml`'s `allowBuilds` key, and runs `pnpm install` — including
+the tarball-integrity workaround described below. `--dry-run` stops after printing the target SHA and
+editing `package.json`/`pnpm-workspace.yaml`, without running `pnpm install`.
+
+The rest of this section documents what the script does and why, for when it needs to be debugged or
+reproduced by hand.
+
+**Known failure: `ERR_PNPM_TARBALL_INTEGRITY` on a fresh commit.** Updating to a commit pushed within
+roughly the last day can fail like this, repeatably, even across `pnpm store prune` and
+`pnpm install --update-checksums`:
+
+```
+[ERR_PNPM_TARBALL_INTEGRITY] Got unexpected checksum for "https://codeload.github.com/.../tar.gz/<sha>".
+Wanted "sha512-<hash-A>". Got "sha512-<hash-B>".
+```
+
+Diagnosed 2026-08-16: this is not tampering or a stale local cache. `pnpm update`/`pnpm install
+--update-checksums` can write a `resolution.integrity` into `pnpm-lock.yaml` for the *new* commit that
+is byte-identical to the *previous* pinned commit's integrity, instead of the new tarball's real hash
+(confirmed by downloading the tarball independently and hashing it — the content itself is stable
+across repeated downloads from `codeload.github.com`, so this is pnpm miscomputing/copying the
+lockfile field, not the server serving inconsistent content). `--update-checksums` does not correct
+this for this `gitHosted` tarball dependency shape; it fails identically on retry. The reliable fix —
+what the script does — is to download the tarball independently, compute its real sha512 ourselves,
+and write that directly into the `resolution.integrity` field of the matching `pnpm-lock.yaml` entry
+before re-running `pnpm install`. Separately, if the tarball for the target commit is already in the
+local pnpm store from a prior attempt, `pnpm install` can resolve the entry with **no** `integrity`
+field at all rather than a stale one — the script checks for and fills in that case too, then re-runs
+`pnpm install` to confirm the lockfile it leaves behind is one pnpm has actually validated.
+
+If you ever need to redo this by hand: replace the old SHA in `pnpm-workspace.yaml`'s `allowBuilds`
+key with the new one (`pnpm update eslint-plugin-lensflow`'s error reports the resolved SHA even
+though the command itself fails), download
+`https://codeload.github.com/alexeieleusis/lens-flow/tar.gz/<new-sha>`, hash it
+(`openssl dgst -sha512 -binary <file> | base64`), and paste `sha512-<that-hash>` into the
+`resolution.integrity` field of the `eslint-plugin-lensflow@https://codeload.../tar.gz/<new-sha>#path:/eslint-lensflow-plugin`
+entry in `pnpm-lock.yaml` before running `pnpm install` again. pnpm sometimes leaves a stray leftover
+line in `pnpm-workspace.yaml` for the *old* SHA (`<old-key>: set this to true or false`); confirm via
+`grep eslint-plugin-lensflow pnpm-lock.yaml` that only the new SHA remains, then delete that line (the
+script does this automatically).
+
 ## Reference assets already seeded here — no install/config needed to start a phase
 
 - `src/base/TelescopeComponent.ts`, `src/base/DndKitInterfaces.ts` — copied verbatim from the

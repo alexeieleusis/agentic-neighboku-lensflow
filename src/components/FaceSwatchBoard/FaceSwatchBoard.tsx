@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { closestCenter, DndContext, useDndMonitor } from "@dnd-kit/core";
+import { DndContext, pointerWithin, useDndMonitor } from "@dnd-kit/core";
 import type {
   TelescopeComponent,
   TelescopedProps,
@@ -27,7 +27,7 @@ import { DraggableFaceTile } from "./DraggableFaceTile";
 export const FaceSwatchBoard: TelescopeComponent<FaceSwatchBoardState> =
   function (props: TelescopedProps<FaceSwatchBoardState>): React.ReactElement {
     return (
-      <DndContext collisionDetection={closestCenter}>
+      <DndContext collisionDetection={pointerWithin}>
         <FaceSwatchBoardConnected {...props} />
       </DndContext>
     );
@@ -44,11 +44,30 @@ function FaceSwatchBoardConnected(
 function RenderFaceSwatchBoard(
   viewModel: Readonly<FaceSwatchBoardViewModel>,
 ): React.ReactElement {
-  const dropStatus = !viewModel.isOver
-    ? null
-    : viewModel.canDropActive
-      ? "success"
-      : "error";
+  let dropStatus: string | null;
+  if (viewModel.isOver) {
+    dropStatus = viewModel.canDropActive ? "success" : "error";
+  } else {
+    dropStatus = null;
+  }
+
+  let slotContent: React.ReactNode = null;
+  if (viewModel.slotTile) {
+    slotContent = (
+      <img
+        src={viewModel.slotTile.imageSrc}
+        alt={viewModel.slotTile.id}
+        width={56}
+        height={56}
+      />
+    );
+  } else if (viewModel.isOver) {
+    slotContent = (
+      <Typography variant="caption" sx={{ color: "common.white" }}>
+        Drop!
+      </Typography>
+    );
+  }
 
   return (
     <Stack direction="row" spacing={4} sx={{ alignItems: "flex-start" }}>
@@ -74,25 +93,15 @@ function RenderFaceSwatchBoard(
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: dropStatus ? "3px solid" : "2px dashed",
-            borderColor: dropStatus ? `${dropStatus}.main` : "divider",
+            border: dropStatus == null ? "2px dashed" : "3px solid",
+            borderColor: dropStatus == null ? "divider" : `${dropStatus}.main`,
             borderRadius: 1,
-            backgroundColor: dropStatus ? `${dropStatus}.dark` : "transparent",
+            backgroundColor:
+              dropStatus === null ? "transparent" : `${dropStatus}.dark`,
             transition: "background-color 100ms, border-color 100ms",
           }}
         >
-          {viewModel.slotTile ? (
-            <img
-              src={viewModel.slotTile.imageSrc}
-              alt={viewModel.slotTile.id}
-              width={56}
-              height={56}
-            />
-          ) : viewModel.isOver ? (
-            <Typography variant="caption" sx={{ color: "common.white" }}>
-              Drop!
-            </Typography>
-          ) : null}
+          {slotContent}
         </Box>
         {viewModel.slotTile ? (
           <Button size="small" onClick={viewModel.onReturnTile}>

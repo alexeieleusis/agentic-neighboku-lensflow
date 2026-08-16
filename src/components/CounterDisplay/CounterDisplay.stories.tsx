@@ -26,6 +26,7 @@ const meta = {
 } satisfies Meta<typeof CounterDisplayHost>;
 
 export default meta;
+// eslint-disable-next-line lensflow/no-typeof-in-type-alias
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {

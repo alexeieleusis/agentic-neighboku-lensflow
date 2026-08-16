@@ -1,3 +1,4 @@
 allowBuilds:
   "@swc/core": true
   esbuild: true
+  "eslint-plugin-lensflow@https://codeload.github.com/alexeieleusis/lens-flow/tar.gz/36212205e2b9ad60e9371b5945f55f7fdf75aa29#path:/eslint-lensflow-plugin": true

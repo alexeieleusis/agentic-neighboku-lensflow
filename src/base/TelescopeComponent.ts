@@ -9,7 +9,7 @@ export type TelescopeComponent<T> = (
   props: TelescopedProps<T>,
 ) => React.ReactElement;
 
-export type ViewModelHook<T, V> = (props: TelescopedProps<T>) => V;
+export type ViewModelHook<T, out V> = (props: TelescopedProps<T>) => V;
 
 export type FractalComponentBuilder = <TState, TViewModel>(
   buildViewModelHook: ViewModelHook<TState, TViewModel>,

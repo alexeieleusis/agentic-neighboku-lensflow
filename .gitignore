@@ -26,5 +26,28 @@ dist-ssr
 *storybook.log
 storybook-static
 
+# Generated lint reports (e.g. lint:lensflow:report for SonarQube import)
+reports/
+
+# Test coverage output (vitest --coverage)
+coverage/
+
 # Claude Code local (per-session/machine) settings — not shared team config.
 .claude/settings.local.json
+
+# orchestrate (Python, uv-managed) — scripts/orchestrate/
+scripts/orchestrate/.venv
+scripts/orchestrate/__pycache__
+scripts/orchestrate/**/__pycache__
+scripts/orchestrate/.ruff_cache
+scripts/orchestrate/.pytest_cache
+scripts/orchestrate/.orchestrate-state
+scripts/orchestrate/*.egg-info
+
+# Session-handoff prompts — working artifacts for a future session, not
+# shared team documentation.
+docs/prompts/
+.env.vibeheal
+.harness.toml
+sonar-project.properties
+.scannerwork/
