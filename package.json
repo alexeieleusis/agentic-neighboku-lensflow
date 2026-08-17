@@ -13,7 +13,7 @@
     "update:lensflow": "node scripts/update-lensflow.mjs",
     "preview": "vite preview",
     "test": "vitest",
-    "coverage": "vitest --coverage",
+    "coverage": "vitest run --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "storybook": "storybook dev -p 6006",

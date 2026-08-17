@@ -13,15 +13,16 @@
 backend = "opencode"               # "opencode" or "claude" — this project uses opencode
 gh_token_cmd = "gh auth token"
 backend_timeout_seconds = 900
-knowledge_dir = "~/.harness/knowledge"
+knowledge_dir = "/home/alexeieleusis/.harness/knowledge"
+review_knowledge_file = "docs/CONVENTIONS.md"
 
 # Optional keys not needed by this project (single TS/JS package, no extra toolchain):
 # [harness.path_prepend]/[harness.env] (per-language PATH/env vars), review_knowledge_file.
 # See dotharness's own config reference if you need them.
 
 [repo]
-name = "<owner>/<repo>"                      # e.g. alexeieleusis/neighboku-ai-baseline
-working_dir = "<absolute-path-to-review-clone>"
+name = "alexeieleusis/<repo>"                      # e.g. alexeieleusis/neighboku-ai-baseline
+working_dir = "/home/alexeieleusis/development/ag-neighboku/<repo>"
 
 [vibe_heal]
 enabled = true
@@ -33,6 +34,14 @@ vibe_heal_post_timeout = 120
 [focused_review]
 enabled = true
 # vibe_types_repo defaults to ~/.harness/vendor/vibe-types
+
+[[repo.subdir]]
+path = "."
+pre_commands = [
+    "pnpm install",
+    "pnpm coverage",
+]
+timeout = 300
 
 # Optional: [address_comments] (PR-comment-triggered re-review tuning) and [[repo.subdir]]
 # (multi-package repo support) — not needed for this single-package project.
