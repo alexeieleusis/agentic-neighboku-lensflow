@@ -57,6 +57,7 @@ class Toolchain:
     pr_merge: Callable[[Path, int], None]
     diff_stat: Callable[[Path, str], tuple[int, int, int]]
     metrics_append_and_commit: Callable[[Path, Path, Path, PhaseMetrics, str], None]
+    lint_lensflow_report: Callable[[Path], None]
 
 
 def _live_toolchain() -> Toolchain:
@@ -83,6 +84,7 @@ def _live_toolchain() -> Toolchain:
         pr_merge=gh_ops.pr_merge,
         diff_stat=git_ops.diff_stat,
         metrics_append_and_commit=metrics.append_and_commit,
+        lint_lensflow_report=vibe_heal_runner.generate_lensflow_report,
     )
 
 
@@ -123,6 +125,7 @@ def _dry_run_toolchain() -> Toolchain:
         pr_merge=lambda clone, pr: None,
         diff_stat=lambda clone, base: (0, 0, 0),
         metrics_append_and_commit=lambda clone, log_json, log_md, m, base_branch: None,
+        lint_lensflow_report=lambda clone: None,
     )
 
 
@@ -242,6 +245,7 @@ def run_phase(
             cycle.cycle_index = cycle_index
 
             report_file = report_dir / f"cycle-{cycle_index}.json"
+            tools.lint_lensflow_report(track.review_clone)
             report = tools.vibe_heal_scan(
                 track.review_clone,
                 report_file=report_file,

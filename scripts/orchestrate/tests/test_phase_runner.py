@@ -68,6 +68,7 @@ def _base_toolchain(**overrides) -> phase_runner.Toolchain:
         pr_merge=lambda clone, pr: None,
         diff_stat=lambda clone, base: (2, 10, 1),
         metrics_append_and_commit=lambda clone, log_json, log_md, m, base_branch: None,
+        lint_lensflow_report=lambda clone: None,
     )
     defaults.update(overrides)
     return phase_runner.Toolchain(**defaults)
@@ -386,3 +387,21 @@ def test_explicit_toolchain_skips_repo_identity_check(tmp_path: Path, mocker) ->
     phase_runner.run_phase(track, phase, toolchain=tools)
 
     guard.assert_not_called()
+
+
+def test_lint_lensflow_report_runs_before_each_scan(tmp_path: Path) -> None:
+    track = _track(tmp_path, max_cycles=3)
+    phase = _phase()
+    order: list[str] = []
+    unresolved = [1, 0]
+    tools = _base_toolchain(
+        lint_lensflow_report=lambda clone: order.append("lint") or None,
+        vibe_heal_scan=lambda clone, **kw: (order.append("scan"), {"files": []})[1],
+        unresolved_thread_count=lambda clone, o, r, pr: unresolved.pop(0),
+    )
+
+    phase_runner.run_phase(track, phase, toolchain=tools)
+
+    # the lensflow eslint report is regenerated before every vibe-heal scan and
+    # reflects current code (address-comments changes between cycles)
+    assert order == ["lint", "scan", "lint", "scan"]

@@ -113,6 +113,30 @@ def post(
     _run(review_clone, *args)
 
 
+def generate_lensflow_report(review_clone: Path) -> None:
+    """Run the app repo's `pnpm lint:lensflow:report` in `review_clone` to
+    (re)generate `reports/eslint-lensflow.json` — the file that
+    sonar-project.properties' `sonar.eslint.reportPaths` imports into SonarQube.
+
+    Called every cycle, right before the vibe-heal scan, because the code
+    changes between cycles (address-comments pushes fixes) and the report must
+    reflect the current code. Harmless on the baseline track: its
+    sonar-project.properties omits the reportPaths line, so the generated file
+    is simply never imported."""
+    result = subprocess.run(
+        ["pnpm", "lint:lensflow:report"],
+        cwd=review_clone,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        raise VibeHealCommandError(
+            ["pnpm", "lint:lensflow:report"], result.returncode, result.stderr
+        )
+
+
 def fingerprints_from_report(report: dict[str, Any]) -> set[Fingerprint]:
     """(file, rule, line) identity for every changed-line issue in a
     review.json payload — restricted to on_changed_line=True, the only
