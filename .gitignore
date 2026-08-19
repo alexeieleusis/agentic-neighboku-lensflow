@@ -51,3 +51,6 @@ docs/prompts/
 .harness.toml
 sonar-project.properties
 .scannerwork/
+
+# orchestrate per-PR scan artifacts (cycle-*.json) — generated, not source
+.orchestrate-reports/
