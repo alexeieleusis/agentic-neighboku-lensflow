@@ -115,6 +115,65 @@ def unresolved_thread_count(clone: Path, owner: str, repo: str, pr_number: int) 
     return count
 
 
+FOCUSED_REVIEW_MARKER = "[focused-review-bot]"
+
+
+def _api_json(clone: Path, endpoint: str, *fields: str) -> Any:
+    """`gh api` REST call: GET when no fields, POST when fields are given.
+    Returns the parsed JSON body ({}, not None, when the endpoint returns no
+    body)."""
+    args = [endpoint]
+    if fields:
+        args += ["-X", "POST"]
+        args += [a for f in fields for a in ("--raw-field", f)]
+    result = _run(clone, "api", *args)
+    body = result.stdout.strip()
+    return json.loads(body) if body else {}
+
+
+def thumbs_up_focused_review_replies(
+    clone: Path, owner: str, repo: str, pr_number: int
+) -> int:
+    """Add a 👍 (+1) reaction to every inline review comment on the PR whose
+    body carries FOCUSED_REVIEW_MARKER — the in-thread reply the focused-review
+    runner posts under each Sonar comment it elaborates. This is the 'approved'
+    signal that address-comments waits for when
+    `require_reaction_for_focused_review = true`. Only marker-bearing comments
+    are touched; the reaction is attributed to the authenticated gh identity
+    (the same one address-comments' gate checks for). Idempotent: a comment we
+    already +1'd is skipped rather than re-reacted (409), so re-running mid-
+    cycle is safe. Returns the number of reactions actually added."""
+    our_login = _api_json(clone, "user")["login"]
+    added = 0
+    page = 1
+    while True:
+        comments = _api_json(
+            clone, f"repos/{owner}/{repo}/pulls/{pr_number}/comments?per_page=100&page={page}"
+        )
+        for comment in comments:
+            if FOCUSED_REVIEW_MARKER not in (comment.get("body") or ""):
+                continue
+            comment_id = comment["id"]
+            reactions = _api_json(
+                clone, f"repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions?per_page=100"
+            )
+            if any(
+                r.get("content") == "+1" and r.get("user", {}).get("login") == our_login
+                for r in reactions
+            ):
+                continue
+            _api_json(
+                clone,
+                f"repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
+                "content=+1",
+            )
+            added += 1
+        if len(comments) < 100:
+            break
+        page += 1
+    return added
+
+
 def review_decision(clone: Path, pr_number: int) -> str | None:
     """APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | None. Only meaningful
     if the repo has branch-protection review requirements configured — use as

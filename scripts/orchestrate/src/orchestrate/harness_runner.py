@@ -7,16 +7,16 @@ from typing import Literal
 from orchestrate.config import HARNESS_TOOL_DIR
 from orchestrate.errors import CommandError
 
-Subcommand = Literal["self-review", "address-comments"]
+Subcommand = Literal["self-review", "focused-review", "address-comments"]
 
 
 class HarnessCommandError(CommandError):
     """A `harness run` subprocess exited non-zero. Note: this only happens on
-    lock contention, a fatal git error, or bad config — self-review and
-    address-comments both swallow per-PR errors internally and return exit 0
-    regardless of whether anything was found or fixed. A clean exit here is
-    NOT evidence the PR is actually clean; the caller must check GitHub state
-    (gh_ops.unresolved_thread_count) separately."""
+    lock contention, a fatal git error, or bad config — self-review,
+    focused-review, and address-comments all swallow per-PR errors internally
+    and return exit 0 regardless of whether anything was found or fixed. A
+    clean exit here is NOT evidence the PR is actually clean; the caller must
+    check GitHub state (gh_ops.unresolved_thread_count) separately."""
 
 
 def run(
@@ -54,6 +54,16 @@ def self_review(review_clone: Path, harness_config: Path, *, verbose: bool = Fal
     source: `review-requested` is for PRs where the harness identity is a
     requested reviewer of someone else's PR)."""
     return run(review_clone, harness_config, "self-review", verbose=verbose)
+
+
+def focused_review(review_clone: Path, harness_config: Path, *, verbose: bool = False) -> str:
+    """Experiment step between static analysis and self-review: elaborates
+    fresh SonarQube comments that cite a vibe-types knowledge URL into full
+    refactor descriptions, posted as in-thread replies carrying the
+    `[focused-review-bot]` marker. No-op when `[focused_review] enabled` is
+    false in the config or no such comments exist; already-elaborated comments
+    are skipped by the runner itself (its own marker check)."""
+    return run(review_clone, harness_config, "focused-review", verbose=verbose)
 
 
 def address_comments(review_clone: Path, harness_config: Path, *, verbose: bool = False) -> str:

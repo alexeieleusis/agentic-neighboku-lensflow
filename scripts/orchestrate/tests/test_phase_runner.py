@@ -58,6 +58,8 @@ def _base_toolchain(**overrides) -> phase_runner.Toolchain:
         pr_view=lambda clone: {"number": 7, "url": "https://x.invalid/pull/7"},
         vibe_heal_scan=lambda clone, **kwargs: {"files": []},
         vibe_heal_post=lambda clone, **kwargs: None,
+        harness_focused_review=lambda clone, config: "ok",
+        focused_review_reply_thumbs_up=lambda clone, owner, repo, pr: 0,
         harness_self_review=lambda clone, config: "ok",
         harness_address_comments=lambda clone, config: "ok",
         unresolved_thread_count=lambda clone, owner, repo, pr: 0,
@@ -203,6 +205,37 @@ def test_vibe_heal_dedup_only_posts_when_new_fingerprints_appear(tmp_path: Path)
     assert result.metrics.sonar_issues_opened == 1
     assert result.metrics.sonar_issues_resolved == 0
     assert result.metrics.sonar_issues_left_open == 1
+
+
+def test_focused_review_and_thumbs_up_run_between_post_and_self_review(tmp_path: Path) -> None:
+    track = _track(tmp_path)
+    phase = _phase()
+    order: list[str] = []
+    tools = _base_toolchain(
+        vibe_heal_scan=lambda clone, **kw: order.append("scan")
+        or {
+            "files": [
+                {"file_path": "a.ts", "issues": [{"rule": "S1", "line": 1, "on_changed_line": True}]}
+            ]
+        },
+        vibe_heal_post=lambda clone, **kw: order.append("post") or None,
+        harness_focused_review=lambda clone, config: order.append("focused-review") or "ok",
+        focused_review_reply_thumbs_up=lambda clone, owner, repo, pr: order.append("thumbs-up") or 0,
+        harness_self_review=lambda clone, config: order.append("self-review") or "ok",
+        harness_address_comments=lambda clone, config: order.append("address-comments") or "ok",
+    )
+
+    result = phase_runner.run_phase(track, phase, toolchain=tools)
+
+    assert result.merged is True
+    assert order == [
+        "scan",
+        "post",
+        "focused-review",
+        "thumbs-up",
+        "self-review",
+        "address-comments",
+    ]
 
 
 def test_auto_merge_false_skips_merge_but_runs_gates(tmp_path: Path) -> None:

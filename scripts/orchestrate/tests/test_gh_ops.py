@@ -135,6 +135,67 @@ def test_review_decision_returns_value(mocker) -> None:
     assert gh_ops.review_decision(Path("/repo"), 7) == "CHANGES_REQUESTED"
 
 
+def _comments_page(bodies: list[tuple[int, str]]) -> str:
+    return json.dumps(
+        [{"id": i, "body": body, "user": {"login": "someone"}} for i, body in bodies]
+    )
+
+
+def test_thumbs_up_tags_only_marker_carrying_comments(mocker) -> None:
+    run = mocker.patch(
+        "orchestrate.gh_ops.subprocess.run",
+        side_effect=[
+            _completed(stdout='{"login": "ours"}'),
+            _completed(
+                stdout=_comments_page(
+                    [
+                        (1, "plain sonar comment"),
+                        (2, "refactor per [focused-review-bot] guidance"),
+                        (3, "another [focused-review-bot] reply"),
+                    ]
+                )
+            ),
+            _completed(stdout="[]"),  # reactions on comment 2: none yet
+            _completed(stdout='{"content": "+1"}'),  # POST reaction on comment 2
+            _completed(stdout="[]"),  # reactions on comment 3: none yet
+            _completed(stdout='{"content": "+1"}'),  # POST reaction on comment 3
+        ],
+    )
+
+    added = gh_ops.thumbs_up_focused_review_replies(Path("/repo"), "o", "r", 7)
+
+    assert added == 2
+    post_calls = [
+        call.args[0] for call in run.call_args_list if call.args and "-X" in call.args[0]
+    ]
+    assert len(post_calls) == 2
+    assert all("content=+1" in args_list for args_list in post_calls)
+
+
+def test_thumbs_up_skips_comments_already_reacted(mocker) -> None:
+    run = mocker.patch(
+        "orchestrate.gh_ops.subprocess.run",
+        side_effect=[
+            _completed(stdout='{"login": "ours"}'),
+            _completed(
+                stdout=_comments_page([(1, "[focused-review-bot] reply")])
+            ),
+            # existing +1 from 'ours' -> no POST, so only these two calls happen
+            _completed(
+                stdout=json.dumps(
+                    [{"content": "+1", "user": {"login": "ours"}}]
+                )
+            ),
+        ],
+    )
+
+    added = gh_ops.thumbs_up_focused_review_replies(Path("/repo"), "o", "r", 7)
+
+    assert added == 0
+    assert run.call_count == 3
+    assert all("-X" not in call.args[0] for call in run.call_args_list)
+
+
 def test_run_raises_gh_command_error_on_nonzero_exit(mocker) -> None:
     mocker.patch(
         "orchestrate.gh_ops.subprocess.run",

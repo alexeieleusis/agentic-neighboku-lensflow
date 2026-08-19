@@ -47,6 +47,8 @@ class Toolchain:
     pr_view: Callable[[Path], dict[str, Any]]
     vibe_heal_scan: Callable[..., dict[str, Any]]
     vibe_heal_post: Callable[..., None]
+    harness_focused_review: Callable[[Path, Path], str]
+    focused_review_reply_thumbs_up: Callable[[Path, str, str, int], int]
     harness_self_review: Callable[[Path, Path], str]
     harness_address_comments: Callable[[Path, Path], str]
     unresolved_thread_count: Callable[[Path, str, str, int], int]
@@ -71,6 +73,8 @@ def _live_toolchain() -> Toolchain:
         pr_view=gh_ops.pr_view,
         vibe_heal_scan=vibe_heal_runner.scan,
         vibe_heal_post=vibe_heal_runner.post,
+        harness_focused_review=harness_runner.focused_review,
+        focused_review_reply_thumbs_up=gh_ops.thumbs_up_focused_review_replies,
         harness_self_review=harness_runner.self_review,
         harness_address_comments=harness_runner.address_comments,
         unresolved_thread_count=gh_ops.unresolved_thread_count,
@@ -109,6 +113,8 @@ def _dry_run_toolchain() -> Toolchain:
         },
         vibe_heal_scan=lambda clone, **kwargs: {"files": []},
         vibe_heal_post=lambda clone, **kwargs: None,
+        harness_focused_review=lambda clone, config: "dry-run: focused-review no-op",
+        focused_review_reply_thumbs_up=lambda clone, owner, repo, pr: 0,
         harness_self_review=lambda clone, config: "dry-run: self-review no-op",
         harness_address_comments=lambda clone, config: "dry-run: address-comments no-op",
         unresolved_thread_count=lambda clone, owner, repo, pr: 0,
@@ -261,6 +267,15 @@ def run_phase(
                     pr_number=pr["number"],
                 )
                 cycle.posted_vibe_heal_fingerprints = current_fingerprints
+
+            # Experiment: focused review elaborates the fresh Sonar comments,
+            # then every [focused-review-bot] reply gets a 👍 (the approval
+            # signal address-comments gates on via
+            # require_reaction_for_focused_review) before self-review runs.
+            tools.harness_focused_review(track.review_clone, track.harness_config)
+            tools.focused_review_reply_thumbs_up(
+                track.review_clone, track.owner, track.repo, pr["number"]
+            )
 
             tools.harness_self_review(track.review_clone, track.harness_config)
             tools.harness_address_comments(track.review_clone, track.harness_config)

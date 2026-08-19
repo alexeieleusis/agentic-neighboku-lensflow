@@ -59,6 +59,16 @@ def test_self_review_convenience_wrapper_uses_self_review_subcommand(mocker) -> 
     assert run.call_args.args[0][-1] == "self-review"
 
 
+def test_focused_review_convenience_wrapper_uses_focused_review_subcommand(mocker) -> None:
+    run = mocker.patch(
+        "orchestrate.harness_runner.subprocess.run", return_value=_completed()
+    )
+
+    harness_runner.focused_review(Path("/review-clone"), Path("/repo/.harness.toml"))
+
+    assert run.call_args.args[0][-1] == "focused-review"
+
+
 def test_address_comments_convenience_wrapper_uses_address_comments_subcommand(
     mocker,
 ) -> None:
