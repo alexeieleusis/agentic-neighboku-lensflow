@@ -196,6 +196,47 @@ def test_thumbs_up_skips_comments_already_reacted(mocker) -> None:
     assert all("-X" not in call.args[0] for call in run.call_args_list)
 
 
+def test_run_scopes_gh_to_origin_repo_via_gh_repo_env(tmp_path: Path, mocker) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text(
+        '[core]\n\trepositoryformatversion = 0\n'
+        '[remote "origin"]\n\turl = git@github.com:foo/bar.git\n',
+        encoding="utf-8",
+    )
+    run = mocker.patch(
+        "orchestrate.gh_ops.subprocess.run", return_value=_completed()
+    )
+
+    gh_ops.pr_create(tmp_path, "phase-01-foo", "Phase 1: foo", "- x")
+
+    assert run.call_args.kwargs["env"]["GH_REPO"] == "foo/bar"
+
+
+def test_run_scopes_gh_when_https_origin(tmp_path: Path, mocker) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text(
+        '[remote "origin"]\n\turl = https://github.com/foo/bar.git\n',
+        encoding="utf-8",
+    )
+    run = mocker.patch(
+        "orchestrate.gh_ops.subprocess.run", return_value=_completed()
+    )
+
+    gh_ops.pr_merge(tmp_path, 7)
+
+    assert run.call_args.kwargs["env"]["GH_REPO"] == "foo/bar"
+
+
+def test_run_does_not_set_gh_repo_when_origin_unreadable(mocker) -> None:
+    run = mocker.patch(
+        "orchestrate.gh_ops.subprocess.run", return_value=_completed()
+    )
+
+    gh_ops.pr_merge(Path("/does/not/exist"), 7)
+
+    assert "GH_REPO" not in run.call_args.kwargs["env"]
+
+
 def test_run_raises_gh_command_error_on_nonzero_exit(mocker) -> None:
     mocker.patch(
         "orchestrate.gh_ops.subprocess.run",

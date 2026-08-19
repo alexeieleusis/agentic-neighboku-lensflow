@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +14,45 @@ class GhCommandError(CommandError):
     """A `gh` subprocess exited non-zero."""
 
 
+@lru_cache(maxsize=32)
+def _origin_repo(cwd: Path) -> str | None:
+    """`owner/repo` of `cwd`'s `origin` remote, read from `.git/config` (no
+    subprocess — side-effect-free and test-tolerant). Returns None when the
+    file can't be read or the remote isn't a github.com url, in which case
+    `gh` falls back to its own (less reliable) detection."""
+    try:
+        text = (Path(cwd) / ".git" / "config").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    in_origin, url = False, None
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("[remote "):
+            in_origin = s == '[remote "origin"]'
+            continue
+        if in_origin and s.startswith("url"):
+            url = s.split("=", 1)[1].strip()
+    if not url:
+        return None
+    if url.startswith("git@github.com:"):
+        slug = url[len("git@github.com:"):]
+    elif "github.com/" in url:
+        slug = url.split("github.com/", 1)[1]
+    else:
+        return None
+    slug = slug[: -len(".git")] if slug.endswith(".git") else slug
+    return slug or None
+
+
 def _run(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     cmd = ["gh", *args]
+    env = os.environ.copy()
+    repo = _origin_repo(cwd)
+    if repo:
+        # Scope gh to the clone's origin repo explicitly — gh's own repo
+        # detection resolved to the wrong (upstream) repo in the track clones,
+        # which is what made `gh pr create` target the template repo.
+        env["GH_REPO"] = repo
     try:
         result = subprocess.run(
             cmd,
@@ -22,6 +61,7 @@ def _run(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
             text=True,
             check=False,
             timeout=120,
+            env=env,
         )
     except subprocess.TimeoutExpired as exc:
         raise GhCommandError(
