@@ -4,25 +4,26 @@
 # template is based on: ~/development/vibe-heal/.harness.toml,
 # ~/.harness/.harness-pr_review.toml).
 #
-# Usage: copy this file to <review_clone>/.harness.toml and fill in the two
-# <...> placeholders below. Every other value is a real, working setting for
-# this machine (confirmed 2026-08-09/2026-08-10) — leave it as-is unless it
-# actually breaks. Pass this file's path to orchestrate's --harness-config.
+# Usage: copy this file to <review_clone>/.harness.toml and fill in the <...>
+# placeholders in the [repo] section below. Every other value is a real,
+# working setting for this machine (confirmed 2026-08-09/2026-08-10) — leave it
+# as-is unless it actually breaks. Pass this file's path to orchestrate's
+# --harness-config.
 
 [harness]
 backend = "opencode"               # "opencode" or "claude" — this project uses opencode
 gh_token_cmd = "gh auth token"
 backend_timeout_seconds = 900
-knowledge_dir = "/home/alexeieleusis/.harness/knowledge"
+knowledge_dir = "~/.harness/knowledge"
 review_knowledge_file = "docs/CONVENTIONS.md"
 
 # Optional keys not needed by this project (single TS/JS package, no extra toolchain):
-# [harness.path_prepend]/[harness.env] (per-language PATH/env vars), review_knowledge_file.
+# [harness.path_prepend]/[harness.env] (per-language PATH/env vars).
 # See dotharness's own config reference if you need them.
 
 [repo]
-name = "alexeieleusis/<repo>"                      # e.g. alexeieleusis/neighboku-ai-baseline
-working_dir = "/home/alexeieleusis/development/ag-neighboku/<repo>"
+name = "<owner>/<repo>"                      # e.g. alexeieleusis/neighboku-ai-baseline
+working_dir = "<absolute-path-to-review-clone>"
 
 [vibe_heal]
 enabled = true
@@ -43,5 +44,5 @@ pre_commands = [
 ]
 timeout = 300
 
-# Optional: [address_comments] (PR-comment-triggered re-review tuning) and [[repo.subdir]]
-# (multi-package repo support) — not needed for this single-package project.
+# Optional: [address_comments] (PR-comment-triggered re-review tuning) — not needed for
+# this single-package project.
