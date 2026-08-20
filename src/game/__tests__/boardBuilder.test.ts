@@ -233,6 +233,13 @@ describe("buildBoard (smoke + invariants)", () => {
       assertNeighborRule(board, 6);
     }
   });
+
+  it("throws when the pool cannot cover a prime-sized board", () => {
+    // 7 is prime => sectionSize is 7, so the whole board is a single 7x7 section needing
+    // 49 distinct values. The (dim 3, base 3) pool holds only 27 pieces, so no valid board
+    // exists and buildBoard must exhaust maxAttempts and throw instead of retrying forever.
+    expect(() => buildBoard(7, 3, 3, 42)).toThrow();
+  });
 });
 
 // ---- invariants ------------------------------------------------------------------
