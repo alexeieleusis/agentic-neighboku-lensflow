@@ -247,18 +247,18 @@ function assertFullAndUnique(board: Board, size: number): void {
 
 /** Every cell is filled and no value repeats within any row or column. */
 function assertRowsAndColumns(board: Board, size: number): void {
+  const seenCol: Set<Piece>[] = Array.from({ length: size }, () => new Set());
   for (let r = 0; r < size; r++) {
     expect(board[r].length).toBe(size);
     const seenRow = new Set<Piece>();
-    const seenCol = new Set<Piece>();
     for (let c = 0; c < size; c++) {
       const cell = board[r][c];
       expect(cell, `cell [${r}][${c}] not filled`).not.toBeNull();
       if (cell === null) continue;
       expect(seenRow.has(cell), `row ${r} has a duplicate value`).toBe(false);
       seenRow.add(cell);
-      expect(seenCol.has(cell), `col ${c} has a duplicate value`).toBe(false);
-      seenCol.add(cell);
+      expect(seenCol[c].has(cell), `col ${c} has a duplicate value`).toBe(false);
+      seenCol[c].add(cell);
     }
   }
 }
