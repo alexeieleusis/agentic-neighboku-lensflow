@@ -1,4 +1,4 @@
-import type { Piece } from './entities';
+import type { Piece } from "./entities";
 
 export function sharedAttributeCount(a: Piece, b: Piece): number {
   if (a.length !== b.length) {
