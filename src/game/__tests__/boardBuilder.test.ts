@@ -161,7 +161,7 @@ describe("buildPossibleNeighbors", () => {
     const neighbors = buildPossibleNeighbors(piece, 3);
     // three positions; each exactly-one-shared group has (base-1)^2 = 4 members
     expect(neighbors.length).toBe(12);
-    expect(neighbors.some((p) => p === piece)).toBe(false); // self excluded
+    expect(neighbors.includes(piece)).toBe(false); // self excluded
     for (const n of neighbors) {
       const shared = n.filter((d, i) => d === piece[i]).length;
       expect(shared).toBe(1);
