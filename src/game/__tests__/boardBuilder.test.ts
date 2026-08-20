@@ -264,7 +264,9 @@ function assertRowsAndColumns(board: Board, size: number): void {
       if (cell === null) continue;
       expect(seenRow.has(cell), `row ${r} has a duplicate value`).toBe(false);
       seenRow.add(cell);
-      expect(seenCol[c].has(cell), `col ${c} has a duplicate value`).toBe(false);
+      expect(seenCol[c].has(cell), `col ${c} has a duplicate value`).toBe(
+        false,
+      );
       seenCol[c].add(cell);
     }
   }
