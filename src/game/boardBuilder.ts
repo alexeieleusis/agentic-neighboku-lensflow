@@ -213,7 +213,7 @@ function pickLeastUsed(
     if (n < least) least = n;
   }
   const tied = valid.filter((piece) => countOnBoard(draft, piece) === least);
-  return tied[(rng() * tied.length) | 0];
+  return tied[Math.trunc(rng() * tied.length)];
 }
 
 /**
