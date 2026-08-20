@@ -69,7 +69,7 @@ describe("buildPiecePool", () => {
 
   it("is interned: a given value maps to exactly one canonical reference", () => {
     const pool = buildPiecePool(2, 3);
-    const value = pool[3] as Piece; // [1,0]
+    const value = pool[3]; // [1,0]
     const sameValue = pool.filter((p) => isSamePiece(p, value));
     expect(sameValue.length).toBe(1);
     expect(sameValue[0]).toBe(value); // same reference, not merely equal
