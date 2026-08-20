@@ -60,8 +60,8 @@ describe('isValidNeighbor', () => {
   });
 
   it('is symmetric', () => {
-    const a = createPiece([0, 1, 2], 3, 3);
-    const b = createPiece([0, 2, 1], 3, 3);
-    expect(isValidNeighbor(a, b)).toBe(isValidNeighbor(b, a));
+    const pieceA = createPiece([0, 1, 2], 3, 3);
+    const pieceB = createPiece([0, 2, 1], 3, 3);
+    expect(isValidNeighbor(pieceA, pieceB)).toBe(isValidNeighbor(pieceB, pieceA));
   });
 });
