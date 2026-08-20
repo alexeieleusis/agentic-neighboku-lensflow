@@ -207,7 +207,7 @@ describe("validNeighbors", () => {
       [up, left],
     );
     expect(result.length).toBe(1);
-    expect(isSamePiece(result[0] as Piece, pass)).toBe(true);
+    expect(isSamePiece(result[0], pass)).toBe(true);
   });
 });
 
