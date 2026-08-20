@@ -296,22 +296,36 @@ function assertSectionRegion(
 function assertNeighborRule(board: Board, size: number): void {
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      const piece = board[r][c];
-      if (piece === null) continue;
-      if (c + 1 < size) {
-        const right = board[r][c + 1];
-        if (right !== null) {
-          expect(neighborsShareExactlyOne(piece, right)).toBe(true);
-        }
-      }
-      if (r + 1 < size) {
-        const down = board[r + 1][c];
-        if (down !== null) {
-          expect(neighborsShareExactlyOne(piece, down)).toBe(true);
-        }
-      }
+      assertRightAndDownNeighbors(board, size, r, c);
     }
   }
+}
+
+/** The filled cell at (r,c), and its in-bounds right and down neighbors, each share exactly one attribute. */
+function assertRightAndDownNeighbors(
+  board: Board,
+  size: number,
+  r: number,
+  c: number,
+): void {
+  const piece = board[r][c];
+  if (piece === null) return;
+  assertNeighborPair(board, size, piece, r, c + 1); // right
+  assertNeighborPair(board, size, piece, r + 1, c); // down
+}
+
+/** If (nr,nc) is in bounds and filled, its cell shares exactly one attribute with piece. */
+function assertNeighborPair(
+  board: Board,
+  size: number,
+  piece: Piece,
+  nr: number,
+  nc: number,
+): void {
+  if (nr >= size || nc >= size) return;
+  const other = board[nr][nc];
+  if (other === null) return;
+  expect(neighborsShareExactlyOne(piece, other)).toBe(true);
 }
 
 function neighborsShareExactlyOne(a: Piece, b: Piece): boolean {
