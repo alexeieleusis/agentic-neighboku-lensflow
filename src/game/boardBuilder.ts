@@ -199,6 +199,24 @@ function countOnBoard(board: Board, piece: Piece): number {
 }
 
 /**
+ * From `valid` candidates, pick the least-frequently-used piece on `draft`, breaking
+ * ties with a seeded random pick (soft "prefer least-used" heuristic, requirements §3.1).
+ */
+function pickLeastUsed(
+  valid: readonly Piece[],
+  draft: (Piece | null)[][],
+  rng: () => number,
+): Piece {
+  let least = Infinity;
+  for (const piece of valid) {
+    const n = countOnBoard(draft, piece);
+    if (n < least) least = n;
+  }
+  const tied = valid.filter((piece) => countOnBoard(draft, piece) === least);
+  return tied[(rng() * tied.length) | 0];
+}
+
+/**
  * Generates a complete, valid Neighboku board (requirements §3.1, §3.3).
  *
  * Strategy (deliberately faithful to the original, NOT backtracking):
@@ -253,15 +271,7 @@ export function buildBoard(
           deadEnd = true;
           break;
         }
-        let least = Infinity;
-        for (const piece of valid) {
-          const n = countOnBoard(draft, piece);
-          if (n < least) least = n;
-        }
-        const tied = valid.filter(
-          (piece) => countOnBoard(draft, piece) === least,
-        );
-        draft[row][col] = tied[(rng() * tied.length) | 0];
+        draft[row][col] = pickLeastUsed(valid, draft, rng);
       }
     }
 
