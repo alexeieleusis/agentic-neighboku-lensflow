@@ -241,6 +241,12 @@ describe("buildBoard (smoke + invariants)", () => {
 function assertFullAndUnique(board: Board, size: number): void {
   expect(board.length).toBe(size);
   if (board.length !== size) return;
+  assertRowsAndColumns(board, size);
+  assertSectionsUnique(board, size);
+}
+
+/** Every cell is filled and no value repeats within any row or column. */
+function assertRowsAndColumns(board: Board, size: number): void {
   for (let r = 0; r < size; r++) {
     expect(board[r].length).toBe(size);
     const seenRow = new Set<Piece>();
@@ -255,21 +261,33 @@ function assertFullAndUnique(board: Board, size: number): void {
       seenCol.add(cell);
     }
   }
+}
 
+/** No value repeats within any section of the largest-prime-factor tiling. */
+function assertSectionsUnique(board: Board, size: number): void {
   const sSize = sectionSize(size);
   for (let sr = 0; sr < size; sr += sSize) {
     for (let sc = 0; sc < size; sc += sSize) {
-      const seen = new Set<Piece>();
-      for (let r = sr; r < sr + sSize && r < size; r++) {
-        for (let c = sc; c < sc + sSize && c < size; c++) {
-          const cell = board[r][c];
-          if (cell === null) continue;
-          expect(seen.has(cell), `section [${sr}][${sc}] duplicate`).toBe(
-            false,
-          );
-          seen.add(cell);
-        }
-      }
+      assertSectionRegion(board, size, sr, sc, sSize);
+    }
+  }
+}
+
+/** No value repeats within the single `sSize × sSize` region at `(sr, sc)`. */
+function assertSectionRegion(
+  board: Board,
+  size: number,
+  sr: number,
+  sc: number,
+  sSize: number,
+): void {
+  const seen = new Set<Piece>();
+  for (let r = sr; r < sr + sSize && r < size; r++) {
+    for (let c = sc; c < sc + sSize && c < size; c++) {
+      const cell = board[r][c];
+      if (cell === null) continue;
+      expect(seen.has(cell), `section [${sr}][${sc}] duplicate`).toBe(false);
+      seen.add(cell);
     }
   }
 }
