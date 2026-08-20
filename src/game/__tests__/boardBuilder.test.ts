@@ -145,7 +145,7 @@ describe("findExclusions", () => {
     // the same interned reference placed in both the target's section and its row must
     // appear only once in the exclusion list (reference dedup, §8.7)
     const pool = buildPiecePool(3, 3);
-    const shared = pool[5] as Piece; // [0,1,2]
+    const shared = pool[5]; // [0,1,2]
     const board = partialBoard(4, [
       [0, 0, shared], // in target's 2x2 section
       [1, 0, shared], // in target's row
