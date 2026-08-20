@@ -56,9 +56,15 @@ describe('isSamePiece', () => {
     expect(isSamePiece(piece, piece)).toBe(true);
   });
 
-  it('returns false for distinct pieces with equal values', () => {
+  it('returns true for distinct pieces with equal values', () => {
     const a = createPiece([0, 1, 2], 3, 3);
     const b = createPiece([0, 1, 2], 3, 3);
+    expect(isSamePiece(a, b)).toBe(true);
+  });
+
+  it('returns false for pieces with different values', () => {
+    const a = createPiece([0, 1, 2], 3, 4);
+    const b = createPiece([0, 1, 3], 3, 4);
     expect(isSamePiece(a, b)).toBe(false);
   });
 });
