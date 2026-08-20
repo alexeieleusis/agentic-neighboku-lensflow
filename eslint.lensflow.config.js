@@ -19,4 +19,10 @@ export default tseslint.config(
     plugins: { lensflow },
     rules: lensflowRules,
   },
+  {
+    files: ["src/**/__tests__/**/*.{ts,tsx}"],
+    rules: {
+      "lensflow/no-callback-pyramid": "off",
+    },
+  },
 );

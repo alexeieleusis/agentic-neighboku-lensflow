@@ -46,7 +46,9 @@ function fail(message) {
 
 // --- 1. Resolve the target commit from the local lens-flow clone ---
 
-const clonePath = process.env.LENS_FLOW_CLONE_PATH ?? join(homedir(), "development", "lens-flow");
+const clonePath =
+  process.env.LENS_FLOW_CLONE_PATH ??
+  join(homedir(), "development", "lens-flow");
 if (!existsSync(clonePath)) {
   fail(
     `expected a lens-flow clone at ${clonePath}. Clone it or set LENS_FLOW_CLONE_PATH.`,
@@ -83,7 +85,9 @@ const depLineRe = new RegExp(
 );
 const depMatch = packageJson.match(depLineRe);
 if (!depMatch) {
-  fail(`could not find the ${PACKAGE_NAME} git dependency line in package.json.`);
+  fail(
+    `could not find the ${PACKAGE_NAME} git dependency line in package.json.`,
+  );
 }
 const oldSha = depMatch[2];
 
@@ -121,7 +125,9 @@ const allowBuildsRe = new RegExp(
   `("${PACKAGE_NAME}@https://codeload\\.github\\.com/${REPO}/tar\\.gz/)${oldSha}(#${PATH_FRAGMENT}":\\s*true)`,
 );
 if (!allowBuildsRe.test(workspaceYaml)) {
-  fail(`could not find the ${PACKAGE_NAME} allowBuilds line in pnpm-workspace.yaml.`);
+  fail(
+    `could not find the ${PACKAGE_NAME} allowBuilds line in pnpm-workspace.yaml.`,
+  );
 }
 workspaceYaml = workspaceYaml.replace(allowBuildsRe, `$1${newSha}$2`);
 writeText(workspaceYamlPath, workspaceYaml);
@@ -141,8 +147,12 @@ function pnpmInstall() {
 
 const resolutionPrefix = `resolution: \\{gitHosted: true, `;
 const resolutionSuffix = `path: /eslint-lensflow-plugin, tarball: https://codeload\\.github\\.com/${REPO}/tar\\.gz/${newSha}\\}`;
-const withIntegrityRe = new RegExp(`(${resolutionPrefix}integrity: )sha512-[A-Za-z0-9+/=]+(, ${resolutionSuffix})`);
-const withoutIntegrityRe = new RegExp(`(${resolutionPrefix})(${resolutionSuffix})`);
+const withIntegrityRe = new RegExp(
+  `(${resolutionPrefix}integrity: )sha512-[A-Za-z0-9+/=]+(, ${resolutionSuffix})`,
+);
+const withoutIntegrityRe = new RegExp(
+  `(${resolutionPrefix})(${resolutionSuffix})`,
+);
 
 // Returns true if it changed the lockfile, false if it was already correct.
 function ensureLockfileIntegrity() {
@@ -151,14 +161,22 @@ function ensureLockfileIntegrity() {
     if (lock.match(withIntegrityRe)[0].includes(computedIntegrity)) {
       return false;
     }
-    writeText(lockYamlPath, lock.replace(withIntegrityRe, `$1${computedIntegrity}$2`));
+    writeText(
+      lockYamlPath,
+      lock.replace(withIntegrityRe, `$1${computedIntegrity}$2`),
+    );
     return true;
   }
   if (withoutIntegrityRe.test(lock)) {
-    writeText(lockYamlPath, lock.replace(withoutIntegrityRe, `$1integrity: ${computedIntegrity}, $2`));
+    writeText(
+      lockYamlPath,
+      lock.replace(withoutIntegrityRe, `$1integrity: ${computedIntegrity}, $2`),
+    );
     return true;
   }
-  fail(`could not find the ${PACKAGE_NAME}@${newSha} resolution entry in pnpm-lock.yaml.`);
+  fail(
+    `could not find the ${PACKAGE_NAME}@${newSha} resolution entry in pnpm-lock.yaml.`,
+  );
 }
 
 let result = pnpmInstall();
@@ -168,9 +186,12 @@ process.stderr.write(result.stderr ?? "");
 if (result.status !== 0) {
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   const isIntegrityFailure =
-    output.includes("ERR_PNPM_TARBALL_INTEGRITY") && output.includes(tarballUrl);
+    output.includes("ERR_PNPM_TARBALL_INTEGRITY") &&
+    output.includes(tarballUrl);
   if (!isIntegrityFailure) {
-    fail("pnpm install failed for a reason other than the known tarball-integrity bug (see output above).");
+    fail(
+      "pnpm install failed for a reason other than the known tarball-integrity bug (see output above).",
+    );
   }
 
   const gotMatch = output.match(/Got "sha512-([A-Za-z0-9+/=]+)"/);
@@ -191,18 +212,24 @@ if (result.status !== 0) {
   process.stdout.write(result.stdout ?? "");
   process.stderr.write(result.stderr ?? "");
   if (result.status !== 0) {
-    fail("pnpm install still failed after patching the lockfile integrity (see output above).");
+    fail(
+      "pnpm install still failed after patching the lockfile integrity (see output above).",
+    );
   }
 } else if (ensureLockfileIntegrity()) {
   // pnpm resolved from an already-warm local store without writing (or with a
   // stale) integrity for this entry. Re-run so the lockfile we commit is the
   // one pnpm itself has validated against our independently computed checksum.
-  console.log("\nFilled in a missing/stale lockfile checksum — re-running pnpm install to confirm it.");
+  console.log(
+    "\nFilled in a missing/stale lockfile checksum — re-running pnpm install to confirm it.",
+  );
   result = pnpmInstall();
   process.stdout.write(result.stdout ?? "");
   process.stderr.write(result.stderr ?? "");
   if (result.status !== 0) {
-    fail("pnpm install failed after filling in the lockfile checksum (see output above).");
+    fail(
+      "pnpm install failed after filling in the lockfile checksum (see output above).",
+    );
   }
 }
 
@@ -217,7 +244,9 @@ if (!lockText.includes(oldSha)) {
   if (staleKeyRe.test(workspace)) {
     workspace = workspace.replace(staleKeyRe, "");
     writeText(workspaceYamlPath, workspace);
-    console.log("Removed a stray allowBuilds line left over from the old commit.");
+    console.log(
+      "Removed a stray allowBuilds line left over from the old commit.",
+    );
   }
 }
 
