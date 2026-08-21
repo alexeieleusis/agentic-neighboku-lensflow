@@ -15,24 +15,36 @@ export interface PreferenceScalars {
   readonly size: number;
 }
 
-/**
- * The wide, user-facing preferences (requirements §4.2). Distinct from the domain
- * `Game`'s narrow `GamePreferences` (which only carries `preventInvalidMoves`): the
- * move-engine reads a subset, the app owns the full set that is persisted (Phase 16).
- */
-export interface AppPreferences {
-  readonly scalars: PreferenceScalars;
-  readonly pieceType: PieceType;
+/** §4.2 hint toggles. */
+export interface HintPreferences {
   readonly hintFitPieceCount: boolean;
   readonly hintPieceCells: boolean;
   readonly hintFitOnDrag: boolean;
   readonly showFitPiecesOnHover: boolean;
   readonly hintAvailablePiecesCount: boolean;
   readonly hintAvailablePieceUniqueCell: boolean;
-  readonly preventInvalidMoves: boolean;
   readonly hintGameIsSolvable: boolean;
+}
+
+/** Presentation toggles (requirements §1, §5.4). */
+export interface PresentationPreferences {
+  readonly pieceType: PieceType;
   readonly sound: boolean;
 }
+
+/** §4.2 move behavior; the move-engine reads only this subset. */
+export interface MovePreferences {
+  readonly preventInvalidMoves: boolean;
+}
+
+/**
+ * The wide, user-facing preferences (requirements §4.2). Distinct from the domain
+ * `Game`'s narrow `GamePreferences` (which only carries `preventInvalidMoves`): the
+ * move-engine reads a subset, the app owns the full set that is persisted (Phase 16).
+ */
+export type AppPreferences = {
+  readonly scalars: PreferenceScalars;
+} & PresentationPreferences & HintPreferences & MovePreferences;
 
 /**
  * Root shell state (requirements §5.1, §7.3). `game` is the Phase 1–3 move-engine `Game`;
