@@ -348,7 +348,8 @@ describe("placePiece", () => {
         break;
       }
     }
-    if (mover === undefined) throw new Error("no single-copy move available in test setup");
+    if (mover === undefined)
+      throw new Error("no single-copy move available in test setup");
     const next = placePiece(mover.piece, mover.cell, game);
     expect(next.availablePieces.has(mover.piece)).toBe(false);
   });
