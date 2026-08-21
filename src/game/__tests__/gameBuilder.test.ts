@@ -483,8 +483,11 @@ describe("stateIsValid", () => {
     const solved = buildBoard(3, 3, 3, 1);
     const moves: Move[] = [];
     for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 3; c++)
-        moves.push({ pieceValue: solved[r][c]!, cell: [r, c], isValid: true });
+      for (let c = 0; c < 3; c++) {
+        const piece = solved[r][c];
+        if (piece === null) continue;
+        moves.push({ pieceValue: piece, cell: [r, c], isValid: true });
+      }
     expect(
       stateIsValid(
         mkGame({
@@ -501,8 +504,11 @@ describe("stateIsValid", () => {
     const solved = buildBoard(3, 3, 3, 1);
     const moves: Move[] = [];
     for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 3; c++)
-        moves.push({ pieceValue: solved[r][c]!, cell: [r, c], isValid: true });
+      for (let c = 0; c < 3; c++) {
+        const piece = solved[r][c];
+        if (piece === null) continue;
+        moves.push({ pieceValue: piece, cell: [r, c], isValid: true });
+      }
     moves[moves.length - 1] = { ...moves.at(-1)!, isValid: false };
     expect(
       stateIsValid(
