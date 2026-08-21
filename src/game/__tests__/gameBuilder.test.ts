@@ -337,7 +337,7 @@ describe("placePiece", () => {
       preventInvalidMoves: false,
     });
     // Find a valid move whose piece is down to a single copy.
-    let mover: { piece: Piece; cell: Cell } | undefined;
+    let mover: { readonly piece: Piece; readonly cell: Cell } | undefined;
     for (const [piece, fits] of game.pieceToFitCells) {
       if (fits.length > 0 && game.availablePieces.get(piece) === 1) {
         mover = { piece, cell: cellFromIndex(game.size, fits[0]) };
