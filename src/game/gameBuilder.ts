@@ -391,15 +391,15 @@ export function placePiece(pieceValue: Piece, cell: Cell, game: Game): Game {
  * §3.5 / §8.4: undo the most recent move. Pops the last `Move`, restores its piece to the
  * tray, blanks its cell, and recomputes both fit caches.
  *
- * Deliberately NO guard against an empty `placedCells`: `placedCells.length - 1` indexes
- * past the end (`undefined`) and the destructuring below throws, exactly as in the
+ * Deliberately NO guard against an empty `placedCells`: `placedCells.at(-1)` returns
+ * `undefined` past the end and the destructuring below throws, exactly as in the
  * original. The UI disables Undo when `placedCells` is empty (§5.7), so this path is
  * unreachable in normal play; we reproduce the unhandled behavior rather than adding a
  * defensive check (§8.4).
  */
 export function undoPlay(game: Game): Game {
   const { size, board, availablePieces, placedCells, preferences } = game;
-  const last = placedCells[placedCells.length - 1];
+  const last = placedCells.at(-1)!;
   const { pieceValue, cell } = last;
   const [row, col] = cell;
 
