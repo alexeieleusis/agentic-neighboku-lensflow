@@ -120,13 +120,15 @@ function findBlockReplacer(): Piece {
   const cands = buildPossibleNeighbors(BLOCK.b, 3).filter((p) =>
     buildPossibleNeighbors(BLOCK.c, 3).some((q) => isSamePiece(p, q)),
   );
-  return cands.find(
+  const replacer = cands.find(
     (p) =>
       !isSamePiece(p, BLOCK.a) &&
       !isSamePiece(p, BLOCK.b) &&
       !isSamePiece(p, BLOCK.c) &&
       !isSamePiece(p, BLOCK.d),
-  )!;
+  );
+  if (!replacer) throw new Error("No valid replacer found for block board");
+  return replacer;
 }
 
 // =========================================================================
@@ -139,7 +141,6 @@ describe("couldLegallyReplace", () => {
     // Find a tray candidate that legally replaces `a` there.
     const board = blockBoard();
     const replacer = findBlockReplacer();
-    expect(replacer).toBeTruthy();
     expect(couldLegallyReplace(board, replacer, 0, 0)).toBe(true);
   });
 
