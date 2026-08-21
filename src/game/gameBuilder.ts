@@ -42,20 +42,45 @@ export type PieceFitCache = ReadonlyMap<Piece, readonly number[]>;
 export type CellFitCache = ReadonlyMap<number, readonly Piece[]>;
 
 /**
- * A single game in flight. `board` is the current on-screen state (a solved board
- * progressively blanked, then progressively re-filled). The two fit caches are recomputed
- * from `{ board, availablePieces }` after *every* mutation and are mutually consistent
- * with it (§3.4 final bullet, §3.5 steps 5, §3.6).
+ * The geometric board state: the grid dimensions and the current on-screen board
+ * (a solved board progressively blanked, then progressively re-filled).
  */
-export interface Game {
+export interface BoardGeometry {
   readonly size: number;
   readonly board: Board;
+}
+
+/** The tray of pieces remaining to be placed. */
+export interface GameTray {
   readonly availablePieces: Tray;
+}
+
+/** The recorded move history for the game. */
+export interface MoveHistory {
   readonly placedCells: readonly Move[];
+}
+
+/**
+ * The two derived fit caches, recomputed from `{ board, availablePieces }` after
+ * *every* mutation and mutually consistent with it (§3.4 final bullet, §3.5 steps 5,
+ * §3.6).
+ */
+export interface FitCaches {
   readonly pieceToFitCells: PieceFitCache;
   readonly cellToFitPieces: CellFitCache;
-  readonly preferences: GamePreferences;
 }
+
+/**
+ * A single game in flight. Structurally identical to the former monolithic `Game`
+ * interface, composed here from focused sub-interfaces so consumers that only need
+ * the board (e.g. {@link couldFitAt}, {@link isLocked}) can accept `BoardGeometry`
+ * instead of the full `Game`, and the fit caches can be widened or dropped together
+ * as a unit without reshaping the others.
+ */
+export type Game = BoardGeometry &
+  GameTray &
+  MoveHistory &
+  FitCaches & { readonly preferences: GamePreferences };
 
 /** Orthogonal offsets — the same up/left/down/right set the board builder uses. */
 const NEIGHBOR_OFFSETS: readonly (readonly [number, number])[] = [
