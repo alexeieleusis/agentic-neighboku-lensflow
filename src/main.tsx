@@ -21,14 +21,16 @@ import { unfoldGame, type Game } from "./game/gameBuilder.ts";
 const defaultPreferences = {
   scalars: { base: 3, dimension: 3, size: 6 },
   pieceType: "Shapes",
-  hintFitPieceCount: true,
-  hintPieceCells: false,
-  hintFitOnDrag: true,
-  showFitPiecesOnHover: true,
-  hintAvailablePiecesCount: true,
-  hintAvailablePieceUniqueCell: true,
+  hints: {
+    fitPieceCount: true,
+    pieceCells: false,
+    fitOnDrag: true,
+    showFitPiecesOnHover: true,
+    availablePiecesCount: true,
+    availablePieceUniqueCell: true,
+    gameIsSolvable: true,
+  },
   preventInvalidMoves: true,
-  hintGameIsSolvable: true,
   sound: true,
 } satisfies AppPreferences;
 

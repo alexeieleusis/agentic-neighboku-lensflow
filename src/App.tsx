@@ -86,11 +86,11 @@ function useAppViewModel(
     () => ({
       undoEnabled: game.placedCells.length > 0,
       solvability: {
-        visible: preferences.hintGameIsSolvable,
+        visible: preferences.hints.gameIsSolvable,
         solvable: stateIsValid(game),
       },
     }),
-    [game, preferences.hintGameIsSolvable],
+    [game, preferences.hints.gameIsSolvable],
   );
 
   return {
