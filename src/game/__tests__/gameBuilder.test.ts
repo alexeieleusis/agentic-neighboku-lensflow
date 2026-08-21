@@ -45,8 +45,14 @@ function trayPieces(game: Game): Piece[] {
   );
 }
 
+type MoveCandidate = {
+  readonly piece: Piece;
+  readonly cell: Cell;
+  readonly idx: number;
+};
+
 /** A real, tray-available move that is LEGAL for the current board, read from the cache. */
-function findValidMove(game: Game): { piece: Piece; cell: Cell; idx: number } {
+function findValidMove(game: Game): MoveCandidate {
   for (const [piece, fits] of game.pieceToFitCells) {
     if (fits.length > 0) {
       const idx = fits[0];
@@ -57,11 +63,7 @@ function findValidMove(game: Game): { piece: Piece; cell: Cell; idx: number } {
 }
 
 /** A tray piece + blank cell that the piece does NOT legally occupy (the cache says so). */
-function findInvalidMove(game: Game): {
-  piece: Piece;
-  cell: Cell;
-  idx: number;
-} {
+function findInvalidMove(game: Game): MoveCandidate {
   const { size, board } = game;
   for (const piece of trayPieces(game)) {
     const fits = game.pieceToFitCells.get(piece) ?? [];
