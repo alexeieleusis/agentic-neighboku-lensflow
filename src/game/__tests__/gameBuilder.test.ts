@@ -22,6 +22,7 @@ import {
   type Cell,
   type Game,
   type Move,
+  type Tray,
 } from "../gameBuilder";
 
 const P = (v: readonly number[]): Piece => createPiece(v, v.length, 3);
@@ -459,7 +460,7 @@ describe("undoPlay", () => {
 function mkGame(opts: {
   readonly size: number;
   readonly board: Board;
-  availablePieces: Map<Piece, number>;
+  availablePieces: Tray;
   placedCells?: readonly Move[];
   pieceToFitCells?: Map<Piece, readonly number[]>;
   cellToFitPieces?: Map<number, readonly Piece[]>;
