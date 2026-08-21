@@ -458,7 +458,7 @@ describe("undoPlay", () => {
 
 function mkGame(opts: {
   readonly size: number;
-  board: Board;
+  readonly board: Board;
   availablePieces: Map<Piece, number>;
   placedCells?: readonly Move[];
   pieceToFitCells?: Map<Piece, readonly number[]>;
