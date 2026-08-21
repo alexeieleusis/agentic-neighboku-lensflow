@@ -348,8 +348,9 @@ describe("placePiece", () => {
       }
     }
     expect(mover).toBeTruthy();
-    const next = placePiece(mover!.piece, mover!.cell, game);
-    expect(next.availablePieces.has(mover!.piece)).toBe(false);
+    if (mover === undefined) throw new Error("no single-copy mover in test setup");
+    const next = placePiece(mover.piece, mover.cell, game);
+    expect(next.availablePieces.has(mover.piece)).toBe(false);
   });
 
   it("throws — and mutates nothing — on an invalid move when preventInvalidMoves is true", () => {
