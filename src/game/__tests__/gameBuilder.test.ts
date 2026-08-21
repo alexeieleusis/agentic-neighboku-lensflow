@@ -472,7 +472,7 @@ describe("stateIsValid", () => {
     for (let r = 0; r < 3; r++)
       for (let c = 0; c < 3; c++)
         moves.push({ pieceValue: solved[r][c]!, cell: [r, c], isValid: true });
-    moves[moves.length - 1] = { ...moves[moves.length - 1], isValid: false };
+    moves[moves.length - 1] = { ...moves.at(-1)!, isValid: false };
     expect(
       stateIsValid(
         mkGame({
