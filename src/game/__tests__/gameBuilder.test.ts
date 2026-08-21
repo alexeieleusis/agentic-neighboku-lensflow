@@ -381,6 +381,37 @@ describe("placePiece", () => {
     expect(next.availablePieces.get(piece) ?? 0).toBe(countBefore - 1); // tray decremented
     expectCachesConsistent(next);
   });
+
+  it("with preventInvalidMoves=false, placing into a filled cell overwrites it (original piece is lost)", () => {
+    const game = unfoldGame(buildBoard(4, 3, 3, 5), {
+      preventInvalidMoves: false,
+    });
+    // Find an actually-filled cell (unfoldGame leaves some cells blank).
+    let row = -1;
+    let col = -1;
+    for (let r = 0; r < game.size; r++) {
+      for (let c = 0; c < game.size; c++) {
+        if (game.board[r][c] !== null) {
+          row = r;
+          col = c;
+          break;
+        }
+      }
+      if (row !== -1) break;
+    }
+    expect(row).toBeGreaterThanOrEqual(0);
+    const originalPiece = game.board[row]![col]!;
+    const { piece } = findValidMove(game);
+
+    const next = placePiece(piece, [row, col] as Cell, game);
+
+    // The target cell now holds the placed piece — the original was overwritten.
+    expect(next.board[row][col]).toBe(piece);
+    // The original piece is gone from the board entirely and was never in the tray,
+    // so it is lost from the game (silent state corruption by design).
+    expect(next.board.some((r) => r.includes(originalPiece))).toBe(false);
+    expect(next.availablePieces.get(originalPiece) ?? 0).toBe(0);
+  });
 });
 
 // =========================================================================
