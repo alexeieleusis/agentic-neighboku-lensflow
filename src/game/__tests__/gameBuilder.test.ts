@@ -583,14 +583,12 @@ describe("stateIsValid", () => {
     expect(
       stateIsValid(
         mkGame({
-          ...{
-            size: 2,
-            board,
-            availablePieces: new Map<Piece, number>([
-              [x, 1],
-              [y, 1],
-            ]),
-          },
+          size: 2,
+          board,
+          availablePieces: new Map<Piece, number>([
+            [x, 1],
+            [y, 1],
+          ]),
           ...caches,
         }),
       ),
