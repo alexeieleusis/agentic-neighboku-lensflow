@@ -99,12 +99,12 @@ function blankCount(board: Board): number {
  * one attribute; all four values distinct). Used to exercise isolated domain functions
  * where only the local neighborhood matters.
  */
-const BLOCK = {
+const BLOCK: Readonly<{ a: Piece; b: Piece; c: Piece; d: Piece }> = {
   a: P([0, 1, 2]), // (0,0)
   b: P([0, 2, 1]), // (0,1) valid neighbor of a
   c: P([1, 2, 2]), // (1,0) valid neighbor of a
   d: P([0, 0, 2]), // (1,1) valid neighbor of b and c
-} as const;
+};
 
 function blockBoard(): Board {
   return partialBoard(3, [
