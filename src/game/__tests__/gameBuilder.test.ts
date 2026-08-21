@@ -486,7 +486,7 @@ describe("stateIsValid", () => {
       for (let c = 0; c < 3; c++) {
         const piece = solved[r][c];
         expect(piece).not.toBeNull();
-        moves.push({ pieceValue: piece, cell: [r, c], isValid: true });
+        moves.push({ pieceValue: piece!, cell: [r, c], isValid: true });
       }
     expect(
       stateIsValid(
@@ -507,7 +507,7 @@ describe("stateIsValid", () => {
       for (let c = 0; c < 3; c++) {
         const piece = solved[r][c];
         expect(piece).not.toBeNull();
-        moves.push({ pieceValue: piece, cell: [r, c], isValid: true });
+        moves.push({ pieceValue: piece!, cell: [r, c], isValid: true });
       }
     moves[moves.length - 1] = { ...moves.at(-1)!, isValid: false };
     expect(
