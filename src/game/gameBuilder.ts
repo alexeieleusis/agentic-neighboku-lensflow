@@ -338,6 +338,14 @@ export function unfoldGame(board: Board, preferences: GamePreferences): Game {
 export function placePiece(pieceValue: Piece, cell: Cell, game: Game): Game {
   const { size, board, availablePieces, placedCells, preferences } = game;
   const [row, col] = cell;
+
+  // §3.5 precondition: reject out-of-bounds cells at the domain boundary.
+  if (isOutOfBounds(size, row, col)) {
+    throw new Error(
+      `placePiece: cell [${row}, ${col}] is out of bounds for size ${size}`,
+    );
+  }
+
   const idx = cellIndex(size, row, col);
 
   // §3.5 step 1: legality against the CURRENT cache, computed before any mutation.
