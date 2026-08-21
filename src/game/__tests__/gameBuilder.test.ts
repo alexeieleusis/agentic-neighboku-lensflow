@@ -20,8 +20,10 @@ import {
   undoPlay,
   unfoldGame,
   type Cell,
+  type CellFitCache,
   type Game,
   type Move,
+  type PieceFitCache,
   type Tray,
 } from "../gameBuilder";
 
@@ -462,8 +464,8 @@ function mkGame(opts: {
   readonly board: Board;
   availablePieces: Tray;
   placedCells?: readonly Move[];
-  pieceToFitCells?: Map<Piece, readonly number[]>;
-  cellToFitPieces?: Map<number, readonly Piece[]>;
+  pieceToFitCells?: PieceFitCache;
+  cellToFitPieces?: CellFitCache;
 }): Game {
   return {
     size: opts.size,
