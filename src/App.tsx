@@ -164,6 +164,23 @@ function RenderTopBar(
   const { topBar } = props;
   const solvability = topBar.solvability;
 
+  let solvabilityIcon: React.ReactElement | null = null;
+  if (solvability.visible) {
+    solvabilityIcon = solvability.solvable ? (
+      <CheckCircleIcon
+        aria-live="polite"
+        aria-label="Position is solvable"
+        sx={{ color: "success.main", p: 0.5 }}
+      />
+    ) : (
+      <ReportProblemIcon
+        aria-live="polite"
+        aria-label="No solution exists"
+        sx={{ color: "error.main", p: 0.5 }}
+      />
+    );
+  }
+
   return (
     <AppBar position="static" sx={{ px: 1 }}>
       <Toolbar variant="dense">
@@ -200,21 +217,7 @@ function RenderTopBar(
               <UndoIcon />
             </IconButton>
           )}
-          {solvability.visible ? (
-            solvability.solvable ? (
-              <CheckCircleIcon
-                aria-live="polite"
-                aria-label="Position is solvable"
-                sx={{ color: "success.main", p: 0.5 }}
-              />
-            ) : (
-              <ReportProblemIcon
-                aria-live="polite"
-                aria-label="No solution exists"
-                sx={{ color: "error.main", p: 0.5 }}
-              />
-            )
-          ) : null}
+          {solvabilityIcon}
           <Tooltip title="Help">
             <IconButton size="small" aria-label="Help">
               <HelpIcon />
