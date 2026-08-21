@@ -631,6 +631,12 @@ describe("§8.7 reference-vs-value equality (preserved, not fixed)", () => {
 
 /** Every filled cell is value-unique within its row/column; the neighbor rule holds. */
 function assertPartialBoard(board: Board, size: number): void {
+  assertRowColUniqueness(board, size);
+  assertOrthogonalNeighbors(board, size);
+}
+
+/** No piece value repeats within any single row or column. */
+function assertRowColUniqueness(board: Board, size: number): void {
   const rows: Set<Piece>[] = Array.from({ length: size }, () => new Set());
   const cols: Set<Piece>[] = Array.from({ length: size }, () => new Set());
   for (let r = 0; r < size; r++) {
@@ -643,14 +649,22 @@ function assertPartialBoard(board: Board, size: number): void {
       cols[c].add(piece);
     }
   }
+}
+
+/** Every orthogonally-adjacent pair of filled pieces satisfies the neighbor rule. */
+function assertOrthogonalNeighbors(board: Board, size: number): void {
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
       const piece = board[r][c];
       if (piece === null) continue;
-      const right = c + 1 < size ? board[r][c + 1] : null;
-      if (right !== null) expect(isValidNeighbor(piece, right)).toBe(true);
-      const down = r + 1 < size ? board[r + 1][c] : null;
-      if (down !== null) expect(isValidNeighbor(piece, down)).toBe(true);
+      if (c + 1 < size) assertNeighborPair(piece, board[r][c + 1]);
+      if (r + 1 < size) assertNeighborPair(piece, board[r + 1][c]);
     }
   }
+}
+
+/** Check one directional neighbor: valid when filled, silently skipped when blank. */
+function assertNeighborPair(piece: Piece, neighbor: Piece | null): void {
+  if (neighbor === null) return;
+  expect(isValidNeighbor(piece, neighbor)).toBe(true);
 }
