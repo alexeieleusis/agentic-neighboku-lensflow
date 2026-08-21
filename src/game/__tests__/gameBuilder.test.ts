@@ -113,6 +113,20 @@ function blockBoard(): Board {
   ]);
 }
 
+/** A tray-available piece that is a valid neighbor of both `BLOCK.b` and `BLOCK.c` but not a block piece. */
+function findBlockReplacer(): Piece {
+  const cands = buildPossibleNeighbors(BLOCK.b, 3).filter((p) =>
+    buildPossibleNeighbors(BLOCK.c, 3).some((q) => isSamePiece(p, q)),
+  );
+  return cands.find(
+    (p) =>
+      !isSamePiece(p, BLOCK.a) &&
+      !isSamePiece(p, BLOCK.b) &&
+      !isSamePiece(p, BLOCK.c) &&
+      !isSamePiece(p, BLOCK.d),
+  )!;
+}
+
 // =========================================================================
 // couldLegallyReplace — "could a tray piece fill this cell as if it were blank"
 // =========================================================================
@@ -122,19 +136,9 @@ describe("couldLegallyReplace", () => {
     // Cell (0,0) holds `a`; its filled neighbors are `b` (right) and `c` (down).
     // Find a tray candidate that legally replaces `a` there.
     const board = blockBoard();
-    const cands = buildPossibleNeighbors(BLOCK.b, 3).filter((p) =>
-      buildPossibleNeighbors(BLOCK.c, 3).some((q) => isSamePiece(p, q)),
-    );
-    // None of the block's own pieces may be the replacer (they'd be in the exclusions).
-    const replacer = cands.find(
-      (p) =>
-        !isSamePiece(p, BLOCK.a) &&
-        !isSamePiece(p, BLOCK.b) &&
-        !isSamePiece(p, BLOCK.c) &&
-        !isSamePiece(p, BLOCK.d),
-    );
+    const replacer = findBlockReplacer();
     expect(replacer).toBeTruthy();
-    expect(couldLegallyReplace(board, replacer!, 0, 0)).toBe(true);
+    expect(couldLegallyReplace(board, replacer, 0, 0)).toBe(true);
   });
 
   it("is false when the piece would violate the neighbor rule against a placed neighbor", () => {
@@ -163,16 +167,7 @@ describe("isLocked", () => {
 
   it("(a) is negated when a tray piece could legally replace the cell", () => {
     const board = blockBoard();
-    const cands = buildPossibleNeighbors(BLOCK.b, 3).filter((p) =>
-      buildPossibleNeighbors(BLOCK.c, 3).some((q) => isSamePiece(p, q)),
-    );
-    const replacer = cands.find(
-      (p) =>
-        !isSamePiece(p, BLOCK.a) &&
-        !isSamePiece(p, BLOCK.b) &&
-        !isSamePiece(p, BLOCK.c) &&
-        !isSamePiece(p, BLOCK.d),
-    )!;
+    const replacer = findBlockReplacer();
     expect(isLocked(board, 3, [replacer], 0, 0)).toBe(false);
   });
 
