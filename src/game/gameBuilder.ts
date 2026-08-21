@@ -220,6 +220,20 @@ export function pickNextLockedCell(
   return best;
 }
 
+/** For a single blank cell, return the tray pieces that legally fit it. */
+function computeFitsForCell(
+  board: Board,
+  trayPieces: readonly Piece[],
+  r: number,
+  c: number,
+): Piece[] {
+  const fits: Piece[] = [];
+  for (const p of trayPieces) {
+    if (fitsBlankCell(board, p, r, c)) fits.push(p);
+  }
+  return fits;
+}
+
 /**
  * §3.4 / §3.5 step 5: (re)compute both fit caches against the given board + remaining
  * tray, restricted to tray-piece-values and blank-cells (the two are inverses). Returns
@@ -242,10 +256,7 @@ export function recomputeFitCaches(
     for (let c = 0; c < size; c++) {
       if (board[r][c] !== null) continue;
       const idx = cellIndex(size, r, c);
-      const fits: Piece[] = [];
-      for (const p of trayPieces) {
-        if (fitsBlankCell(board, p, r, c)) fits.push(p);
-      }
+      const fits = computeFitsForCell(board, trayPieces, r, c);
       cellToFit.set(idx, fits);
       for (const p of fits) pieceToFit.get(p)?.push(idx);
     }
