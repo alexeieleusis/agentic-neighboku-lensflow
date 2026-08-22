@@ -42,12 +42,11 @@ function RenderPieceDisplay(
 
   return (
     <svg
-      role="img"
-      aria-label={ariaLabel}
       width={size}
       height={size}
       viewBox={`0 0 ${PIECE_VIEWBOX} ${PIECE_VIEWBOX}`}
     >
+      <title>{ariaLabel}</title>
       <PieceShape
         form={form}
         strokeColor={strokeColor}

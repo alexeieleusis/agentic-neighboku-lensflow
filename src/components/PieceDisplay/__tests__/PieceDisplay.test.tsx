@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { Telescope } from "telescopejs";
 import { createPiece, type Piece } from "../../../game/entities";
 import { PieceDisplay } from "../PieceDisplay";
@@ -84,9 +84,11 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
       </div>,
     );
 
-    const shapes = container.querySelectorAll("svg[role='img']");
+    const shapes = container.querySelectorAll("svg");
     expect(shapes.length).toBe(27);
-    const labels = new Set(Array.from(shapes).map((s) => s.getAttribute("aria-label")));
+    const labels = new Set(
+      Array.from(shapes).map((s) => s.querySelector("title")?.textContent),
+    );
     expect(labels.size).toBe(27);
 
     // Each form occupies exactly 9 of the 27 (3 strokes × 3 fills).
@@ -95,11 +97,10 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
     expect(container.querySelectorAll("rect").length).toBe(9);
   });
 
-  it("exposes an accessible role and label on its svg", () => {
-    renderPiece(createPiece([0, 0, 0], 3, 3));
-    const svg = screen.getByRole("img");
-    expect(svg.getAttribute("role")).toBe("img");
-    expect(svg.getAttribute("aria-label")).toBe(
+  it("exposes an accessible name on its svg via its <title>", () => {
+    const { container } = renderPiece(createPiece([0, 0, 0], 3, 3));
+    const svg = requireElement(container, "svg");
+    expect(svg.querySelector("title")?.textContent).toBe(
       "circle, red border, aquamarine fill",
     );
   });
