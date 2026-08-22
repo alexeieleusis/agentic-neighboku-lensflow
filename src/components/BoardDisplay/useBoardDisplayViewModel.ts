@@ -44,7 +44,9 @@ function rowDisplayState(
 }
 
 /** The magnification focusing a board telescope down to the row at `index`. */
-function rowLens(index: number): Lens<BoardDisplayState, RowDisplayState> {
+export function rowLens(
+  index: number,
+): Lens<BoardDisplayState, RowDisplayState> {
   return new Lens(
     (board) => rowDisplayState(board.rows[index], board),
     (row, board) => ({

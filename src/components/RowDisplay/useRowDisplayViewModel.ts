@@ -43,7 +43,7 @@ function cellDisplayState(
 }
 
 /** The magnification focusing a row telescope down to the cell at `col`. */
-function cellLens(col: number): Lens<RowDisplayState, CellDisplayState> {
+export function cellLens(col: number): Lens<RowDisplayState, CellDisplayState> {
   return new Lens(
     (row) => cellDisplayState(row.cells[col], row),
     (cell, row) => ({

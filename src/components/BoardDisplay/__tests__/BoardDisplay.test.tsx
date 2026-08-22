@@ -6,9 +6,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 afterEach(() => {
   cleanup();
 });
+import { firstValueFrom, skip } from "rxjs";
 import { Telescope } from "telescopejs";
 import { BoardDisplay } from "../BoardDisplay";
 import type { BoardDisplayState, BoardRow } from "../BoardDisplay.types";
+import { rowLens } from "../useBoardDisplayViewModel";
+import { cellLens } from "../../RowDisplay/useRowDisplayViewModel";
 
 /**
  * A `size × size` board whose rows are filled alternately: even rows carry the
@@ -70,5 +73,25 @@ describe("BoardDisplay", () => {
     expect(labels.length).toBe(8);
     expect(labels[0]).toBe("Piece 0 1 2, row 1, column 1");
     expect(labels[7]).toBe("Piece 0 1 2, row 3, column 4");
+  });
+
+  it("writes a piece back through the magnified board telescope", async () => {
+    const state = buildBoardDisplayState(4);
+    const boardTelescope = Telescope.of(state);
+    const cellTelescope = boardTelescope
+      .magnify(rowLens(2))
+      .magnify(cellLens(3));
+
+    const updated = firstValueFrom(boardTelescope.stream.pipe(skip(1)));
+
+    cellTelescope.evolve((cell) => ({ ...cell, piece: [7] }));
+
+    const board = await updated;
+    // The write lands exactly at row 2, column 3; the cell's identifying fields
+    // survive the write (a dropped `{ ...c, }` spread in `cellLens`' setter would
+    // silently clobber `row`/`col`). Even rows are the filled ones.
+    expect(board.rows[2].cells[3]).toEqual({ row: 2, col: 3, piece: [7] });
+    expect(board.rows[2].cells[2].piece).toEqual([0, 1, 2]); // sibling in the same row
+    expect(board.rows[0].cells[3].piece).toEqual([0, 1, 2]); // a different row
   });
 });
