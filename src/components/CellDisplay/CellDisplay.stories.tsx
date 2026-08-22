@@ -5,12 +5,12 @@ import { CellDisplay } from "./CellDisplay";
 import type { CellDisplayState } from "./CellDisplay.types";
 
 function CellDisplayHost(
-  props: Readonly<{
-    row: number;
-    col: number;
-    size: number;
-    piece: readonly number[] | null;
-  }>,
+  props: {
+    readonly row: number;
+    readonly col: number;
+    readonly size: number;
+    readonly piece: readonly number[] | null;
+  },
 ): React.ReactElement {
   const { state, telescope } = useStoryTelescope<CellDisplayState>({
     size: props.size,
