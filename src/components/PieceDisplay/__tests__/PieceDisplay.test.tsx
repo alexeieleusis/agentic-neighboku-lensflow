@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { Telescope } from "telescopejs";
 import { createPiece, type Piece } from "../../../game/entities";
 import { PieceDisplay } from "../PieceDisplay";
@@ -18,6 +18,13 @@ function renderPiece(piece: Piece, size = 48) {
   return render(<PieceDisplay state={state} telescope={telescope} />);
 }
 
+/** Query a container for a single element by selector; throws with context if absent. */
+function requireElement(container: ParentNode, selector: string): Element {
+  const el = container.querySelector(selector);
+  if (!el) throw new Error(`Expected <${selector}> element not found`);
+  return el;
+}
+
 /** Every `base=3, dimension=3` piece value, in row-major `piece[0]`..`piece[2]` order. */
 function allShapesPieces(): readonly Piece[] {
   const out: Piece[] = [];
@@ -32,35 +39,35 @@ function allShapesPieces(): readonly Piece[] {
 describe("PieceDisplay (Shapes mode) §5.3", () => {
   it("renders a circle for piece[0]=0 with §5.3 r=15 and stroke 5", () => {
     const { container } = renderPiece(createPiece([0, 1, 0], 3, 3));
-    const circle = container.querySelector("circle");
-    expect(circle?.getAttribute("r")).toBe("15");
-    expect(circle?.getAttribute("stroke")).toBe("dodgerblue");
-    expect(circle?.getAttribute("fill")).toBe("aquamarine");
-    expect(circle?.getAttribute("stroke-width")).toBe("5");
+    const circle = requireElement(container, "circle");
+    expect(circle.getAttribute("r")).toBe("15");
+    expect(circle.getAttribute("stroke")).toBe("dodgerblue");
+    expect(circle.getAttribute("fill")).toBe("aquamarine");
+    expect(circle.getAttribute("stroke-width")).toBe("5");
   });
 
   it("renders an equilateral triangle for piece[0]=1 with stroke 4", () => {
     const { container } = renderPiece(createPiece([1, 2, 1], 3, 3));
-    const polygon = container.querySelector("polygon");
-    expect(polygon?.getAttribute("stroke")).toBe("mediumseagreen");
-    expect(polygon?.getAttribute("fill")).toBe("yellow");
-    expect(polygon?.getAttribute("stroke-width")).toBe("4");
-    expect(polygon?.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
+    const polygon = requireElement(container, "polygon");
+    expect(polygon.getAttribute("stroke")).toBe("mediumseagreen");
+    expect(polygon.getAttribute("fill")).toBe("yellow");
+    expect(polygon.getAttribute("stroke-width")).toBe("4");
+    expect(polygon.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
   });
 
   it("renders a square/rect for piece[0]=2 with stroke 10", () => {
     const { container } = renderPiece(createPiece([2, 0, 2], 3, 3));
-    const rect = container.querySelector("rect");
-    expect(rect?.getAttribute("stroke")).toBe("red");
-    expect(rect?.getAttribute("fill")).toBe("purple");
-    expect(rect?.getAttribute("stroke-width")).toBe("10");
+    const rect = requireElement(container, "rect");
+    expect(rect.getAttribute("stroke")).toBe("red");
+    expect(rect.getAttribute("fill")).toBe("purple");
+    expect(rect.getAttribute("stroke-width")).toBe("10");
   });
 
   it("falls back the fill to the stroke color for a 2-dimensional piece", () => {
     const { container } = renderPiece(createPiece([1, 2], 2, 3));
-    const polygon = container.querySelector("polygon");
-    expect(polygon?.getAttribute("fill")).toBe("mediumseagreen");
-    expect(polygon?.getAttribute("stroke")).toBe("mediumseagreen");
+    const polygon = requireElement(container, "polygon");
+    expect(polygon.getAttribute("fill")).toBe("mediumseagreen");
+    expect(polygon.getAttribute("stroke")).toBe("mediumseagreen");
   });
 
   it("gives every base-3 piece a visually distinct shape/stroke/fill combination", () => {
@@ -89,10 +96,10 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
   });
 
   it("exposes an accessible role and label on its svg", () => {
-    const { container } = renderPiece(createPiece([0, 0, 0], 3, 3));
-    const svg = container.querySelector("svg");
-    expect(svg?.getAttribute("role")).toBe("img");
-    expect(svg?.getAttribute("aria-label")).toBe(
+    renderPiece(createPiece([0, 0, 0], 3, 3));
+    const svg = screen.getByRole("img");
+    expect(svg.getAttribute("role")).toBe("img");
+    expect(svg.getAttribute("aria-label")).toBe(
       "circle, red border, aquamarine fill",
     );
   });
