@@ -15,13 +15,11 @@ import type { PieceDisplayState } from "./PieceDisplay.types";
  * `{ state, telescope }` — the telescope IS the props.
  */
 function PieceDisplayHost(props: {
-  readonly piece?: readonly number[];
-  readonly size?: number;
-  readonly dimension?: number;
+  readonly piece: readonly number[];
+  readonly size: number;
+  readonly dimension: number;
 }): React.ReactElement {
-  const piece = props.piece ?? [0, 1, 2];
-  const size = props.size ?? 64;
-  const dimension = props.dimension ?? 3;
+  const { piece, size, dimension } = props;
 
   const { state, telescope } = useStoryTelescope<PieceDisplayState>({
     piece: createPiece(piece, dimension, 3),
@@ -98,6 +96,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const AllShapesPiecesStory: Story = {
+  args: { piece: [0, 1, 2], size: 64, dimension: 3 },
   render: () => <AllShapesPieces size={48} />,
 };
 
