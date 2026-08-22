@@ -32,16 +32,16 @@ describe("usePieceDisplayViewModel (§5.3)", () => {
       form: "circle",
       strokeColor: "dodgerblue",
       fillColor: "aquamarine",
-      strokeWidth: 5,
+      strokeWidth: 4,
       size: 96,
       ariaLabel: "circle, dodgerblue border, aquamarine fill",
     });
   });
 
-  it("maps a square to its §5.3 stroke width 10", () => {
+  it("maps a square to its §5.3 stroke width 4", () => {
     const { result } = renderViewModel([2, 2, 2], 3, 48);
     expect(result.current.form).toBe("square");
-    expect(result.current.strokeWidth).toBe(10);
+    expect(result.current.strokeWidth).toBe(4);
     expect(result.current.strokeColor).toBe("mediumseagreen");
     expect(result.current.fillColor).toBe("purple");
   });

@@ -41,10 +41,10 @@ describe("pieceShapeTables (§5.3 pieces)", () => {
     expect(fillColor(green)).toBe("mediumseagreen");
   });
 
-  it("the stroke width is a property of the form (circle 5, triangle 4, square 10)", () => {
-    expect(formOf(createPiece([0, 0, 0], 3, 3)).strokeWidth).toBe(5);
+  it("the stroke width is a property of the form (circle 4, triangle 4, square 4)", () => {
+    expect(formOf(createPiece([0, 0, 0], 3, 3)).strokeWidth).toBe(4);
     expect(formOf(createPiece([1, 0, 0], 3, 3)).strokeWidth).toBe(4);
-    expect(formOf(createPiece([2, 0, 0], 3, 3)).strokeWidth).toBe(10);
+    expect(formOf(createPiece([2, 0, 0], 3, 3)).strokeWidth).toBe(4);
   });
 
   it("exposes the §5.3 circle radius", () => {

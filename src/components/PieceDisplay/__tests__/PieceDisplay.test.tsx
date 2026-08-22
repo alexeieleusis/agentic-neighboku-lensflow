@@ -39,13 +39,13 @@ function allShapesPieces(): readonly Piece[] {
 }
 
 describe("PieceDisplay (Shapes mode) §5.3", () => {
-  it("renders a circle for piece[0]=0 with §5.3 r=15 and stroke 5", () => {
+  it("renders a circle for piece[0]=0 with §5.3 r=15 and stroke 4", () => {
     const { container } = renderPiece(createPiece([0, 1, 0], 3, 3));
     const circle = requireElement(container, "circle");
     expect(circle.getAttribute("r")).toBe("15");
     expect(circle.getAttribute("stroke")).toBe("dodgerblue");
     expect(circle.getAttribute("fill")).toBe("aquamarine");
-    expect(circle.getAttribute("stroke-width")).toBe("5");
+    expect(circle.getAttribute("stroke-width")).toBe("4");
   });
 
   it("renders an equilateral triangle for piece[0]=1 with stroke 4", () => {
@@ -57,12 +57,12 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
     expect(polygon.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
   });
 
-  it("renders a square/rect for piece[0]=2 with stroke 10", () => {
+  it("renders a square/rect for piece[0]=2 with stroke 4", () => {
     const { container } = renderPiece(createPiece([2, 0, 2], 3, 3));
     const rect = requireElement(container, "rect");
     expect(rect.getAttribute("stroke")).toBe("red");
     expect(rect.getAttribute("fill")).toBe("purple");
-    expect(rect.getAttribute("stroke-width")).toBe("10");
+    expect(rect.getAttribute("stroke-width")).toBe("4");
   });
 
   it("falls back the fill to the stroke color for a 2-dimensional piece", () => {

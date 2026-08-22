@@ -28,9 +28,9 @@ export interface ShapeForm {
  * triangle 4, square 10), whereas the stroke *color* is a property of `piece[1]`.
  */
 export const FORM_BY_INDEX: readonly ShapeForm[] = [
-  Object.freeze({ form: "circle", strokeWidth: 5 }),
+  Object.freeze({ form: "circle", strokeWidth: 4 }),
   Object.freeze({ form: "triangle", strokeWidth: 4 }),
-  Object.freeze({ form: "square", strokeWidth: 10 }),
+  Object.freeze({ form: "square", strokeWidth: 4 }),
 ];
 
 /** `piece[1]` → stroke (border) color, in the order §5.3 names red / dodgerblue / mediumseagreen. */
