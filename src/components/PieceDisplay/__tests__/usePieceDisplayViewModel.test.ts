@@ -9,7 +9,11 @@ import type { PieceDisplayState } from "../PieceDisplay.types";
 // The hook is a pure leaf derivation (no local state, no actions, no telescope writes),
 // so it's exercised through its inputs: different `state` snapshots must yield the right
 // §5.3 attributes. The telescope is required by the props shape but unused by the leaf.
-function renderViewModel(piece: readonly number[], dimension: number, size: number) {
+function renderViewModel(
+  piece: readonly number[],
+  dimension: number,
+  size: number,
+) {
   const state: PieceDisplayState = {
     piece: createPiece(piece, dimension, 3),
     size,

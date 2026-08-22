@@ -62,12 +62,14 @@ function RenderPieceDisplay(
  * view-model, it only chooses which SVG element draws the shape. All the data the shape
  * needs (form, colors, stroke width) arrives already computed by `usePieceDisplayViewModel`.
  */
-function PieceShape(props: Readonly<{
-  readonly form: PieceForm;
-  readonly strokeColor: string;
-  readonly fillColor: string;
-  readonly strokeWidth: number;
-}>): React.ReactElement {
+function PieceShape(
+  props: Readonly<{
+    readonly form: PieceForm;
+    readonly strokeColor: string;
+    readonly fillColor: string;
+    readonly strokeWidth: number;
+  }>,
+): React.ReactElement {
   const { form, strokeColor, fillColor, strokeWidth } = props;
   const paint = {
     fill: fillColor,
@@ -78,7 +80,12 @@ function PieceShape(props: Readonly<{
   switch (form) {
     case "circle":
       return (
-        <circle cx={PIECE_CENTER} cy={PIECE_CENTER} r={CIRCLE_RADIUS} {...paint} />
+        <circle
+          cx={PIECE_CENTER}
+          cy={PIECE_CENTER}
+          r={CIRCLE_RADIUS}
+          {...paint}
+        />
       );
     case "triangle":
       return <polygon points={trianglePoints()} {...paint} />;

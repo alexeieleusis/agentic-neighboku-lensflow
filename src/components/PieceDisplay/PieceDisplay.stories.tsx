@@ -78,7 +78,11 @@ function AllShapesPieces(props: { readonly size: number }): React.ReactElement {
       }}
     >
       {allShapesPieces().map((piece) => (
-        <PieceGalleryCell key={piece.join("·")} piece={piece} size={props.size} />
+        <PieceGalleryCell
+          key={piece.join("·")}
+          piece={piece}
+          size={props.size}
+        />
       ))}
     </Box>
   );

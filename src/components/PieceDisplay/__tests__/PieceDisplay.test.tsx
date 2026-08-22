@@ -31,7 +31,8 @@ function allShapesPieces(): readonly Piece[] {
   const out: Piece[] = [];
   for (const form of [0, 1, 2]) {
     for (const stroke of [0, 1, 2]) {
-      for (const fill of [0, 1, 2]) out.push(createPiece([form, stroke, fill], 3, 3));
+      for (const fill of [0, 1, 2])
+        out.push(createPiece([form, stroke, fill], 3, 3));
     }
   }
   return out;
@@ -80,7 +81,11 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
           const state = { piece, size: 48 } satisfies PieceDisplayState;
           const telescope = Telescope.of(state);
           return (
-            <PieceDisplay key={piece.join("·")} state={state} telescope={telescope} />
+            <PieceDisplay
+              key={piece.join("·")}
+              state={state}
+              telescope={telescope}
+            />
           );
         })}
       </div>,
