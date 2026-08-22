@@ -25,7 +25,7 @@ function buildRowState(rowIndex: number, size: number): RowDisplayState {
 }
 
 function RowDisplayHost(
-  props: Readonly<{ rowIndex: number; size: number }>,
+  props: Readonly<{ readonly rowIndex: number; readonly size: number }>,
 ): React.ReactElement {
   const { state, telescope } = useStoryTelescope<RowDisplayState>(
     buildRowState(props.rowIndex, props.size),

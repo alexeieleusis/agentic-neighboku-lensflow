@@ -4,14 +4,12 @@ import { createPiece } from "../../game/entities";
 import { CellDisplay } from "./CellDisplay";
 import type { CellDisplayState } from "./CellDisplay.types";
 
-function CellDisplayHost(
-  props: {
-    readonly row: number;
-    readonly col: number;
-    readonly size: number;
-    readonly piece: readonly number[] | null;
-  },
-): React.ReactElement {
+function CellDisplayHost(props: {
+  readonly row: number;
+  readonly col: number;
+  readonly size: number;
+  readonly piece: readonly number[] | null;
+}): React.ReactElement {
   const { state, telescope } = useStoryTelescope<CellDisplayState>({
     size: props.size,
     pieceType: "Shapes",
