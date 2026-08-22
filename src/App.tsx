@@ -26,8 +26,6 @@ import type {
 import type {
   AppState,
   AppViewModel,
-  BoardCellView,
-  BoardView,
   TrayColumnView,
   TrayView,
   TopBarView,
@@ -35,16 +33,28 @@ import type {
 import type { Piece } from "./game/entities.ts";
 import { stateIsValid } from "./game/gameBuilder.ts";
 import type { Game } from "./game/gameBuilder.ts";
+import { Lens } from "telescopejs";
+import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
+import type {
+  BoardCell,
+  PieceType,
+} from "./components/CellDisplay/CellDisplay.types.ts";
+import type {
+  BoardDisplayState,
+  BoardRow,
+} from "./components/BoardDisplay/BoardDisplay.types.ts";
 
 /**
  * Root application shell (requirements §5.1). Established here as the outer
  * `state,telescope → useAppViewModel → RenderApp` fractal component (requirements §7.2)
  * and the shared shell-level `DndContext` ancestor (requirements §5.1,
- * docs/CONVENTIONS.md dnd-kit note). The top bar, board, and tray are intentionally
- * bare-bones placeholder renderings this phase; their full presentation lands in later
- * phases (BoardDisplay/CellDisplay §5.2, PieceDisplay §5.3/§5.4, the real tray §5.5,
- * and the dnd wiring §5.6). The Snackbar (§5.13/§5.12) and the game-finished Dialog
- * (§3.6/§5.13) are present but closed/inactive.
+ * docs/CONVENTIONS.md dnd-kit note). The board now renders as Phase 5's
+ * `BoardDisplay`/`RowDisplay`/`CellDisplay` (§5.2) — section-colored CSS grid, but
+ * still placeholder-level at the cell edge: no piece graphics yet (Phase 6), no hint
+ * logic (Phase 12). The top bar and tray remain bare-bones placeholder renderings;
+ * their full presentation lands in later phases (PieceDisplay §5.3/§5.4, the real
+ * tray §5.5, and the dnd wiring §5.6). The Snackbar (§5.13/§5.12) and the
+ * game-finished Dialog (§3.6/§5.13) are present but closed/inactive.
  */
 export const App: TelescopeComponent<AppState> = (
   props: TelescopedProps<AppState>,
@@ -57,7 +67,7 @@ export const App: TelescopeComponent<AppState> = (
 /* -------------------------------------------------------------------------- */
 
 /**
- * The shell's view-model hook. In Phase 4 every value is a pure derivation from the
+ * The shell's view-model hook. In Phase 5 every value is a pure derivation from the
  * current state snapshot (no telescope writes, no local UI state, no dnd-kit hooks),
  * so the `useAppDomain`/`useAppState`/`useAppActions`/`useAppViewModel` split that
  * docs/CONVENTIONS.md's scale rule requires for a non-trivial component is deferred
@@ -72,9 +82,16 @@ function useAppViewModel(
   const { game, preferences, invalidMoveSnackbarOpen, gameFinishedDialogOpen } =
     props.state;
 
-  const board = useMemo<BoardView>(
-    () => ({ size: game.size, cells: mapBoardToViewModel(game) }),
-    [game],
+  // App → BoardDisplay (§7.2): a read-only magnification of the shell telescope onto
+  // the board slice. The board is a derived view of `game.board`, so no action writes
+  // through it this phase — the magnified telescope's stream simply mirrors the
+  // board slice of the shell state.
+  const board = useMemo<TelescopedProps<BoardDisplayState>>(
+    () => ({
+      state: buildBoardDisplayState(game, preferences.pieceType),
+      telescope: props.telescope.magnify(BOARD_DISPLAY_LENS),
+    }),
+    [game, preferences.pieceType, props.telescope],
   );
 
   const tray = useMemo<TrayView>(
@@ -104,19 +121,40 @@ function useAppViewModel(
 
 /* -------------------------------------------------------------------------- */
 /* Pure domain-tier derivation helpers (moved to useAppDomain in a later      */
-/* phase; no React or telescope imports here)                                 */
+/* phase; no React imports here)                                              */
 /* -------------------------------------------------------------------------- */
 
-/** Flatten a frozen `Board` into an ordered list of view-model cells. */
-function mapBoardToViewModel(game: Game): readonly BoardCellView[] {
-  const cells: BoardCellView[] = [];
+/**
+ * Flatten a frozen `Board` into Phase 5's `BoardDisplayState`: one `BoardRow` per
+ * board row, cells in column order, plus the app-level `pieceType` the shell owns
+ * (requirements §4.2) that cells forward to their droppable targets.
+ */
+function buildBoardDisplayState(
+  game: Game,
+  pieceType: PieceType,
+): BoardDisplayState {
+  const rows: BoardRow[] = [];
   for (let row = 0; row < game.size; row++) {
+    const cells: BoardCell[] = [];
     for (let col = 0; col < game.size; col++) {
       cells.push({ row, col, piece: game.board[row][col] });
     }
+    rows.push({ index: row, cells });
   }
-  return cells;
+  return { size: game.size, pieceType, rows };
 }
+
+/**
+ * The App → BoardDisplay magnification (§7.2). The getter derives the board slice
+ * from the shell state; the setter is deliberately the identity: the board is a
+ * read-only projection of `game.board` this phase, so any write through the board
+ * telescope is a no-op until Phase 8 routes placement through the move engine
+ * (which rebuilds `game` wholesale and updates the shell telescope, not this slice).
+ */
+const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
+  (state) => buildBoardDisplayState(state.game, state.preferences.pieceType),
+  (_boardState, state) => state,
+);
 
 /** The remaining tray pieces, one view-model column per distinct piece value. */
 function mapTrayToViewModel(game: Game): readonly TrayColumnView[] {
@@ -251,9 +289,9 @@ function AppBoardTray(
 }
 
 /**
- * The DndContext-descendant that renders the bare-bones board + tray. This is where a
- * later phase will call `useDraggable`/`useDroppable`/`useDndMonitor` (and register the
- * `useDndMonitor` drag-end handling).
+ * The DndContext-descendant that renders the `BoardDisplay` (§5.2) + the bare-bones
+ * tray. This is where a later phase will call `useDraggable`/`useDroppable`/
+ * `useDndMonitor` (and register the `useDndMonitor` drag-end handling).
  */
 function AppBoardTrayBoard(
   props: Readonly<{ viewModel: Readonly<AppViewModel> }>,
@@ -261,65 +299,9 @@ function AppBoardTrayBoard(
   const { board, tray } = props.viewModel;
   return (
     <Stack spacing={2}>
-      <RenderBoard board={board} />
+      <BoardDisplay {...board} />
       <RenderTray tray={tray} />
     </Stack>
-  );
-}
-
-function RenderBoard(
-  props: Readonly<{ board: Readonly<BoardView> }>,
-): React.ReactElement {
-  const { board } = props;
-  return (
-    <Box>
-      <Typography variant="subtitle2" component="div" sx={{ mb: 1 }}>
-        Board ({board.size}×{board.size})
-      </Typography>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${board.size}, minmax(0, 1fr))`,
-          gap: "0.25rem",
-          maxWidth: "min(44rem, 100%)",
-        }}
-      >
-        {board.cells.map((cell) => (
-          <BoardCell key={`${cell.row}-${cell.col}`} cell={cell} />
-        ))}
-      </Box>
-    </Box>
-  );
-}
-
-function BoardCell(
-  props: Readonly<{ cell: Readonly<BoardCellView> }>,
-): React.ReactElement {
-  const { cell } = props;
-  return (
-    <Box
-      sx={{
-        aspectRatio: "1",
-        display: "grid",
-        placeItems: "center",
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 0.5,
-      }}
-      aria-label={
-        cell.piece === null
-          ? `Empty cell, row ${cell.row + 1}, column ${cell.col + 1}`
-          : `Piece ${pieceDisplay(cell.piece)}, row ${cell.row + 1}, column ${cell.col + 1}`
-      }
-    >
-      {cell.piece === null ? (
-        <Typography variant="caption" sx={{ color: "text.disabled" }}>
-          ·
-        </Typography>
-      ) : (
-        <Typography variant="caption">{pieceDisplay(cell.piece)}</Typography>
-      )}
-    </Box>
   );
 }
 

@@ -1,12 +1,17 @@
+import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import type { Game } from "./game/gameBuilder.ts";
 import type { Piece } from "./game/entities.ts";
+import type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
+import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
  * preference toggled via the Preferences panel (Phase 16); the actual Shapes/Faces
- * rendering is Phase 6/Phase 19, so Phase 4 only stores this value.
+ * rendering is Phase 6/Phase 19. The type itself is defined at the Phase 5 leaf
+ * (`CellDisplay.types.ts`, its first consumer) and imported here bottom-up so the
+ * component type graph stays acyclic.
  */
-export type PieceType = "Shapes" | "Faces";
+export type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 
 /** The §4.2 scalar sub-object of the wide preferences. */
 export interface PreferenceScalars {
@@ -57,19 +62,6 @@ export interface AppState {
 /* View-model shapes consumed by RenderApp                                     */
 /* -------------------------------------------------------------------------- */
 
-/** One board cell, bare-bones for Phase 4 (piece as a digit vector, not yet styled). */
-export interface BoardCellView {
-  readonly row: number;
-  readonly col: number;
-  readonly piece: Piece | null;
-}
-
-/** The board as a flat, ordered list of cells (row-major) plus its square size. */
-export interface BoardView {
-  readonly size: number;
-  readonly cells: readonly BoardCellView[];
-}
-
 /** One tray column: a distinct remaining piece value and how many copies remain. */
 export interface TrayColumnView {
   readonly piece: Piece;
@@ -95,7 +87,12 @@ export interface TopBarView {
 
 /** Everything `RenderApp` needs, precomputed by `useAppViewModel`. */
 export interface AppViewModel {
-  readonly board: BoardView;
+  /**
+   * The Phase 5 board slice: `BoardDisplayState` plus a magnified child telescope
+   * (`App` → `BoardDisplay`, §7.2). Read-only in this phase — board writes flow
+   * through the move engine once placement exists (Phase 8).
+   */
+  readonly board: TelescopedProps<BoardDisplayState>;
   readonly tray: TrayView;
   readonly topBar: TopBarView;
   readonly snackbarOpen: boolean;
