@@ -11,7 +11,7 @@ import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.t
  * (`CellDisplay.types.ts`, its first consumer) and imported here bottom-up so the
  * component type graph stays acyclic.
  */
-export type { PieceType };
+export type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 
 /** The §4.2 scalar sub-object of the wide preferences. */
 export interface PreferenceScalars {
