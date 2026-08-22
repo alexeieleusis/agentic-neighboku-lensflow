@@ -93,22 +93,21 @@ const meta = {
 } satisfies Meta<typeof PieceDisplayHost>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-export const AllShapesPiecesStory: Story = {
+export const AllShapesPiecesStory: StoryObj<typeof meta> = {
   args: { piece: [0, 1, 2], size: 64, dimension: 3 },
   render: () => <AllShapesPieces size={48} />,
 };
 
-export const Circle: Story = {
+export const Circle: StoryObj<typeof meta> = {
   args: { piece: [0, 0, 0], size: 96, dimension: 3 },
 };
 
-export const Triangle: Story = {
+export const Triangle: StoryObj<typeof meta> = {
   args: { piece: [1, 1, 1], size: 96, dimension: 3 },
 };
 
-export const Square: Story = {
+export const Square: StoryObj<typeof meta> = {
   args: { piece: [2, 2, 2], size: 96, dimension: 3 },
 };
 
@@ -116,6 +115,6 @@ export const Square: Story = {
  * 2-dimensional fallback (dimension=2): `piece[2]` is absent, so §5.3's rule makes the
  * fill fall back to the stroke color — a filled shape with border == fill.
  */
-export const TwoDimensionalFallback: Story = {
+export const TwoDimensionalFallback: StoryObj<typeof meta> = {
   args: { piece: [2, 1], size: 96, dimension: 2 },
 };
