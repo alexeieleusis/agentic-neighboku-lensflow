@@ -52,7 +52,9 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
     expect(polygon.getAttribute("stroke")).toBe("mediumseagreen");
     expect(polygon.getAttribute("fill")).toBe("yellow");
     expect(polygon.getAttribute("stroke-width")).toBe("4");
-    expect(polygon.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
+    const points = polygon.getAttribute("points");
+    assertExists(points, "points");
+    expect(points.trim().split(/\s+/).length).toBe(3);
   });
 
   it("renders a square/rect for piece[0]=2 with stroke 10", () => {
