@@ -33,10 +33,11 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
   it("renders a circle for piece[0]=0 with §5.3 r=15 and stroke 5", () => {
     const { container } = renderPiece(createPiece([0, 1, 0], 3, 3));
     const circle = container.querySelector("circle");
-    expect(circle?.getAttribute("r")).toBe("15");
-    expect(circle?.getAttribute("stroke")).toBe("dodgerblue");
-    expect(circle?.getAttribute("fill")).toBe("aquamarine");
-    expect(circle?.getAttribute("stroke-width")).toBe("5");
+    if (!circle) throw new Error("Expected a <circle> element");
+    expect(circle.getAttribute("r")).toBe("15");
+    expect(circle.getAttribute("stroke")).toBe("dodgerblue");
+    expect(circle.getAttribute("fill")).toBe("aquamarine");
+    expect(circle.getAttribute("stroke-width")).toBe("5");
   });
 
   it("renders an equilateral triangle for piece[0]=1 with stroke 4", () => {
