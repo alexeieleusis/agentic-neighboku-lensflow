@@ -48,8 +48,13 @@ export const FILL_COLORS: readonly string[] = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* Lookup accessors (total: §5.3 only defines base-3 digits, so out-of-range   */
-/* digits clamp to the last entry rather than yield `undefined`).              */
+/* Lookup accessors. §5.3 only defines base-3 digits, so out-of-range digits   */
+/* clamp to the last entry rather than yield `undefined`. But the digit must   */
+/* exist at all: `Piece` is a bare `ReadonlyArray<number>`, so a 0-/1-d piece  */
+/* is missing `piece[0]`/`piece[1]` entirely rather than holding a sentinel. A */
+/* missing required digit is a domain error, so the accessor throws the same   */
+/* `RangeError` `createPiece` throws — a deterministic, unit-testable failure  */
+/* instead of `NaN`/`undefined` leaking into the view model and the render.    */
 /* -------------------------------------------------------------------------- */
 
 /** Safe index into a fixed table: negative → first, ≥ length → last. */
@@ -58,9 +63,27 @@ function pick<T>(table: readonly T[], index: number): T {
   return table[i];
 }
 
-/** `piece[0]` → the form + §5.3 stroke width for that form. */
+/**
+ * Read a required attribute digit `piece[index]`. Throws the same domain
+ * `RangeError` `createPiece` throws when the piece has fewer than
+ * `index + 1` attributes (§5.3 digits are positional: a short piece simply
+ * lacks the digit instead of carrying a sentinel).
+ */
+function requiredDigit(piece: Piece, index: number): number {
+  if (piece.length <= index) {
+    throw new RangeError(
+      `Piece has ${piece.length} attribute(s); attribute ${index} is required but missing`,
+    );
+  }
+  return piece[index];
+}
+
+/**
+ * `piece[0]` → the form + §5.3 stroke width for that form. Throws `RangeError`
+ * when the piece carries no form digit (a 0-d piece).
+ */
 export function formOf(piece: Piece): ShapeForm {
-  return pick(FORM_BY_INDEX, piece[0]);
+  return pick(FORM_BY_INDEX, requiredDigit(piece, 0));
 }
 
 /** `piece[0]` → just the form name. */
@@ -68,14 +91,18 @@ export function pieceForm(piece: Piece): PieceForm {
   return formOf(piece).form;
 }
 
-/** `piece[1]` → stroke (border) color. */
+/**
+ * `piece[1]` → stroke (border) color. Throws `RangeError` when the piece
+ * carries no stroke digit (a 0-d or 1-d piece).
+ */
 export function strokeColor(piece: Piece): string {
-  return pick(STROKE_COLORS, piece[1]);
+  return pick(STROKE_COLORS, requiredDigit(piece, 1));
 }
 
 /**
  * `piece[2]` → fill color. §5.3's 2-d fallback: a piece with no third digit
- * (`piece[2] === undefined`) fills with its stroke color.
+ * (`piece[2] === undefined`) fills with its stroke color — which throws
+ * `RangeError` for a piece too short to have a stroke digit at all.
  */
 export function fillColor(piece: Piece): string {
   return piece.length > 2 ? pick(FILL_COLORS, piece[2]) : strokeColor(piece);

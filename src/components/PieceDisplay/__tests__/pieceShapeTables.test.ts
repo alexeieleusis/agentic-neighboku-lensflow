@@ -80,6 +80,23 @@ describe("pieceShapeTables (§5.3 pieces)", () => {
     expect(seen.size).toBe(27);
   });
 
+  it("throws the domain RangeError when a required attribute digit is missing (short piece)", () => {
+    // `createPiece` admits shorter pieces (dimension 1 / 0); the §5.3 display
+    // accessors need more digits than such a piece carries, so they fail fast
+    // with the same `RangeError` `createPiece` throws instead of leaking
+    // `NaN`/`undefined` into the view model and the render.
+    const oneDimensional: Piece = createPiece([1], 1, 3); // has piece[0], lacks piece[1]
+    const empty: Piece = createPiece([], 0, 3); // lacks piece[0] and piece[1]
+    expect(() => strokeColor(oneDimensional)).toThrow(RangeError);
+    expect(() => fillColor(oneDimensional)).toThrow(RangeError);
+    expect(() => formOf(empty)).toThrow(RangeError);
+    expect(() => pieceForm(empty)).toThrow(RangeError);
+    expect(() => strokeColor(empty)).toThrow(RangeError);
+    expect(() => fillColor(empty)).toThrow(RangeError);
+    // Present digits still resolve as before: a 1-d piece's form digit is intact.
+    expect(pieceForm(oneDimensional)).toBe("triangle");
+  });
+
   it("clamps out-of-range digits to the last table entry instead of yielding undefined", () => {
     // §5.3 only defines base-3 digits; a raw (un-validated) piece simulates a larger base.
     const oversized: Piece = [9, 9, 9];
