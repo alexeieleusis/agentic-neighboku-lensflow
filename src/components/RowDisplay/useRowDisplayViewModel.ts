@@ -42,7 +42,15 @@ function cellDisplayState(
   };
 }
 
-/** The magnification focusing a row telescope down to the cell at `col`. */
+/**
+ * The magnification focusing a row telescope down to the cell at `col`.
+ *
+ * Intentional asymmetry: `get` exposes the full `CellDisplayState` (board-level
+ * invariants `size`/`pieceType` plus the fixed `row`/`col` position, all
+ * forwarded as read-only context to the cell), but `set` writes back only
+ * `piece` — the sole cell-local mutable field. `size`/`pieceType` are
+ * board-wide and cannot be changed per-cell.
+ */
 export function cellLens(col: number): Lens<RowDisplayState, CellDisplayState> {
   return new Lens(
     (row) => cellDisplayState(row.cells[col], row),
