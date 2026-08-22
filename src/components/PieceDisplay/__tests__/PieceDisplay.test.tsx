@@ -11,20 +11,6 @@ afterEach(() => {
   cleanup();
 });
 
-/** Assertion: fails the test (via throw) if value is null/undefined, then narrows it to T. */
-function assertExists<T>(value: T | null | undefined, label?: string): asserts value is T {
-  expect(value, label ? `"${label}" must exist` : undefined).not.toBeNull();
-}
-
-/** querySelector that fails the test with a clear message instead of returning null. */
-function queryNonNull(container: HTMLElement, selector: string): SVGElement {
-  const el = container.querySelector<SVGElement>(selector);
-  if (el === null) {
-    throw new Error(`Expected element matching "${selector}" in rendered output`);
-  }
-  return el;
-}
-
 /** Render one `PieceDisplay` for a piece and hand back the DOM container for shape queries. */
 function renderPiece(piece: Piece, size = 48) {
   const state = { piece, size } satisfies PieceDisplayState;
@@ -46,37 +32,35 @@ function allShapesPieces(): readonly Piece[] {
 describe("PieceDisplay (Shapes mode) §5.3", () => {
   it("renders a circle for piece[0]=0 with §5.3 r=15 and stroke 5", () => {
     const { container } = renderPiece(createPiece([0, 1, 0], 3, 3));
-    const circle = queryNonNull(container, "circle");
-    expect(circle.getAttribute("r")).toBe("15");
-    expect(circle.getAttribute("stroke")).toBe("dodgerblue");
-    expect(circle.getAttribute("fill")).toBe("aquamarine");
-    expect(circle.getAttribute("stroke-width")).toBe("5");
+    const circle = container.querySelector("circle");
+    expect(circle?.getAttribute("r")).toBe("15");
+    expect(circle?.getAttribute("stroke")).toBe("dodgerblue");
+    expect(circle?.getAttribute("fill")).toBe("aquamarine");
+    expect(circle?.getAttribute("stroke-width")).toBe("5");
   });
 
   it("renders an equilateral triangle for piece[0]=1 with stroke 4", () => {
     const { container } = renderPiece(createPiece([1, 2, 1], 3, 3));
-    const polygon = queryNonNull(container, "polygon");
-    expect(polygon.getAttribute("stroke")).toBe("mediumseagreen");
-    expect(polygon.getAttribute("fill")).toBe("yellow");
-    expect(polygon.getAttribute("stroke-width")).toBe("4");
-    const points = polygon.getAttribute("points");
-    assertExists(points, "points");
-    expect(points.trim().split(/\s+/).length).toBe(3);
+    const polygon = container.querySelector("polygon");
+    expect(polygon?.getAttribute("stroke")).toBe("mediumseagreen");
+    expect(polygon?.getAttribute("fill")).toBe("yellow");
+    expect(polygon?.getAttribute("stroke-width")).toBe("4");
+    expect(polygon?.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
   });
 
   it("renders a square/rect for piece[0]=2 with stroke 10", () => {
     const { container } = renderPiece(createPiece([2, 0, 2], 3, 3));
-    const rect = queryNonNull(container, "rect");
-    expect(rect.getAttribute("stroke")).toBe("red");
-    expect(rect.getAttribute("fill")).toBe("purple");
-    expect(rect.getAttribute("stroke-width")).toBe("10");
+    const rect = container.querySelector("rect");
+    expect(rect?.getAttribute("stroke")).toBe("red");
+    expect(rect?.getAttribute("fill")).toBe("purple");
+    expect(rect?.getAttribute("stroke-width")).toBe("10");
   });
 
   it("falls back the fill to the stroke color for a 2-dimensional piece", () => {
     const { container } = renderPiece(createPiece([1, 2], 2, 3));
-    const polygon = queryNonNull(container, "polygon");
-    expect(polygon.getAttribute("fill")).toBe("mediumseagreen");
-    expect(polygon.getAttribute("stroke")).toBe("mediumseagreen");
+    const polygon = container.querySelector("polygon");
+    expect(polygon?.getAttribute("fill")).toBe("mediumseagreen");
+    expect(polygon?.getAttribute("stroke")).toBe("mediumseagreen");
   });
 
   it("gives every base-3 piece a visually distinct shape/stroke/fill combination", () => {
@@ -106,9 +90,9 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
 
   it("exposes an accessible role and label on its svg", () => {
     const { container } = renderPiece(createPiece([0, 0, 0], 3, 3));
-    const svg = queryNonNull(container, "svg");
-    expect(svg.getAttribute("role")).toBe("img");
-    expect(svg.getAttribute("aria-label")).toBe(
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("role")).toBe("img");
+    expect(svg?.getAttribute("aria-label")).toBe(
       "circle, red border, aquamarine fill",
     );
   });
