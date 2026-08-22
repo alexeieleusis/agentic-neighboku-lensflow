@@ -12,6 +12,7 @@ afterEach(() => {
 });
 
 /** Render one `PieceDisplay` for a piece and hand back the DOM container for shape queries. */
+// eslint-disable-next-line lensflow/require-smart-constructor-validation
 function renderPiece(piece: Piece, size = 48) {
   const state = { piece, size } satisfies PieceDisplayState;
   const telescope = Telescope.of(state);
@@ -74,6 +75,7 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
     const pieces = allShapesPieces();
     const { container } = render(
       <div>
+        {/* eslint-disable-next-line lensflow/require-smart-constructor-validation */}
         {pieces.map((piece) => {
           const state = { piece, size: 48 } satisfies PieceDisplayState;
           const telescope = Telescope.of(state);
