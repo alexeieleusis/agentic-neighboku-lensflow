@@ -20,7 +20,13 @@ export interface PreferenceScalars {
   readonly size: number;
 }
 
-/** §4.2 hint toggles for the “does it fit” preview. */
+/**
+ * §4.2 hint toggles for the “does it fit” preview. Independent user preferences
+ * (defaults enable several at once — see `defaultPreferences` in `main.tsx`), not
+ * mutually exclusive states — so they stay parallel booleans rather than a
+ * discriminated union (UC13 “When Not to Use It”: independent simple flags).
+ */
+// eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface FitHintFlags {
   readonly fitPieceCount: boolean;
   readonly pieceCells: boolean;
