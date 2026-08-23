@@ -1,8 +1,8 @@
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import type { Game } from "./game/gameBuilder.ts";
-import type { Piece } from "./game/entities.ts";
 import type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
+import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -62,17 +62,6 @@ export interface AppState {
 /* View-model shapes consumed by RenderApp                                     */
 /* -------------------------------------------------------------------------- */
 
-/** One tray column: a distinct remaining piece value and how many copies remain. */
-export interface TrayColumnView {
-  readonly piece: Piece;
-  readonly count: number;
-}
-
-/** The placeholder-level tray (full tray columns land in Phase 7). */
-export interface TrayView {
-  readonly columns: readonly TrayColumnView[];
-}
-
 /** The top-bar solvability indicator (requirements §5.1, §5.13). */
 export interface SolvabilityView {
   readonly visible: boolean;
@@ -93,7 +82,12 @@ export interface AppViewModel {
    * through the move engine once placement exists (Phase 8).
    */
   readonly board: TelescopedProps<BoardDisplayState>;
-  readonly tray: TrayView;
+  /**
+   * The Phase 7 tray slice: `AvailablePiecesTrayState` plus a magnified child telescope
+   * (`App` → `AvailablePiecesTray`, §7.2). Read-only in this phase — tray writes flow
+   * through the move engine once placement exists (Phase 8).
+   */
+  readonly tray: TelescopedProps<AvailablePiecesTrayState>;
   readonly topBar: TopBarView;
   readonly snackbarOpen: boolean;
   readonly dialogOpen: boolean;
