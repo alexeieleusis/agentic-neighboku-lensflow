@@ -129,4 +129,15 @@ describe("useAvailablePiecesTrayViewModel", () => {
     ]);
     expect(result.current.columns.map((c) => c.count)).toEqual([1, 1]);
   });
+
+  it("returns no columns when the tray is empty or all counts are zero", () => {
+    const empty = renderViewModel({ size: 6, availablePieces: new Map() });
+    expect(empty.result.current.columns).toEqual([]);
+
+    const allZero = renderViewModel({
+      size: 6,
+      availablePieces: trayOf([[[0, 0, 0], 0]]),
+    });
+    expect(allZero.result.current.columns).toEqual([]);
+  });
 });
