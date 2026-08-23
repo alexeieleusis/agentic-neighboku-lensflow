@@ -87,13 +87,13 @@ describe("useAvailablePiecesTrayViewModel", () => {
       ]),
     });
 
-    const stateA: AvailablePiecesTrayState = {
+    const stateA = {
       size: 6,
       availablePieces: trayOf([
         [[0, 0, 0], 2],
         [[1, 1, 1], 1],
       ]),
-    };
+    } satisfies AvailablePiecesTrayState;
 
     const { result, rerender } = renderHook(
       (state: AvailablePiecesTrayState) =>
