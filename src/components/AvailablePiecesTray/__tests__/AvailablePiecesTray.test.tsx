@@ -88,7 +88,7 @@ describe("AvailablePiecesTray (§5.5)", () => {
     expect(container.querySelectorAll("rect").length).toBe(0);
   });
 
-  it("spans the width of the board (columns wrap only when the next column would not fit)", () => {
+  it("tray row has width 100% (columns wrap via flexWrap; overflow behavior covered by stories)", () => {
     const { container } = renderTray(MID_GAME_STATE);
     // The column row is 100% wide — the same width the board above it fills — so a
     // column drops to the next row only when it would not fit here (the row keeps
