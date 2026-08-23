@@ -40,7 +40,7 @@ function columnTitles(container: ParentNode): readonly string[] {
  * §5.5 ascending order, plus one fully-placed (zero-count) value that must not get a
  * column. Expected order: [0,0,0] (0), [0,2,0] (20), [1,0,0] (100), [1,1,1] (111).
  */
-const MID_GAME_STATE: AvailablePiecesTrayState = {
+const MID_GAME_STATE = {
   size: 6,
   availablePieces: trayOf([
     [[1, 1, 1], 4],
@@ -49,7 +49,7 @@ const MID_GAME_STATE: AvailablePiecesTrayState = {
     [[0, 0, 0], 3],
     [[2, 0, 0], 0],
   ]),
-} as const;
+} as const satisfies AvailablePiecesTrayState;
 
 const EXPECTED_TITLES = [
   "circle, red border, aquamarine fill", // [0,0,0]
