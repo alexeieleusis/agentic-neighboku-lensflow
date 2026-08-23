@@ -11,12 +11,14 @@ import type {
 import { useCellDisplayViewModel } from "./useCellDisplayViewModel";
 
 /**
- * §5.2 — one board cell. It positions itself on the board grid with its view model's
- * `gridRow`/`gridColumn` and paints its section-keyed `backgroundColor`. A blank cell
- * shows its `pieceType`-appropriate droppable target — a placeholder in this phase;
- * the Phase 8 drag target and the Phase 12 fit hints land here. A filled cell shows
- * a minimal inline placeholder for its piece; the shared `PieceDisplay` (Phases 6–19)
- * replaces that placeholder.
+ * §5.2 + §5.6 — one board cell. It positions itself on the board grid with its view
+ * model's `gridRow`/`gridColumn` and paints its section-keyed `backgroundColor`. A blank
+ * cell is the `cell-{row}-{col}` droppable target (§5.6): its root element carries the
+ * `useDroppable` node ref, and the dashed "drop here" ring turns solid while a piece is
+ * dragged over it (the Phase 12 fit hints extend it further). A filled cell shows a
+ * minimal inline placeholder for its piece; the shared `PieceDisplay` (Phases 6–19)
+ * replaces that placeholder. The actual drop is committed by the shell's
+ * `handleDragEnd` — this cell only advertises the target.
  */
 export const CellDisplay: TelescopeComponent<CellDisplayState> = function (
   props: TelescopedProps<CellDisplayState>,
@@ -27,11 +29,13 @@ export const CellDisplay: TelescopeComponent<CellDisplayState> = function (
 function RenderCellDisplay(
   viewModel: Readonly<CellDisplayViewModel>,
 ): React.ReactElement {
-  const { gridRow, gridColumn, backgroundColor, pieceLabel } = viewModel;
+  const { gridRow, gridColumn, backgroundColor, pieceLabel, isOver } =
+    viewModel;
   const isFilled = pieceLabel !== null;
 
   return (
     <Box
+      ref={viewModel.droppableNodeRef}
       sx={{
         gridRow,
         gridColumn,
@@ -62,15 +66,16 @@ function RenderCellDisplay(
           </Typography>
         </Box>
       ) : (
-        // Blank-cell droppable target placeholder: a dashed "drop here" ring. The
-        // real drag target lands in Phase 8 and the fit-count/tooltip in Phase 12.
+        // The §5.6 droppable target: a dashed "drop here" ring that turns solid while a
+        // piece is dragged over the cell; the fit-count/tooltip extends it in Phase 12.
         <Box
           aria-hidden
           sx={{
             width: "60%",
             height: "60%",
-            border: "1px dashed",
-            borderColor: "text.disabled",
+            border: isOver ? "2px solid" : "1px dashed",
+            borderColor: isOver ? "primary.main" : "text.disabled",
+            transition: "border-color 100ms, border-width 100ms",
             borderRadius: 0.5,
           }}
         />

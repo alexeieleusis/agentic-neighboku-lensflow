@@ -18,9 +18,11 @@ import {
  * Orchestrator hook (requirements §7.2.1): composes the pure domain tier
  * (`useAvailablePiecesTrayDomain`) with the §7.2 magnified-telescope parent→child flow
  * and stays wiring-only. There is no local non-telescope UI state and no user-triggered
- * action in scope this phase (click-to-place and the `*` hint land in Phase 13,
- * drag-and-drop in Phase 8), so no `useAvailablePiecesTrayState` /
- * `useAvailablePiecesTrayActions` split — the Phase 7 scale-rule call.
+ * action in scope this phase (the piece's drag itself lives in the per-column
+ * `DraggablePiece` — Phase 8 — and the drop is committed by the shell's
+ * `handleDragEnd`; click-to-place and the `*` hint land in Phase 13), so no
+ * `useAvailablePiecesTrayState` / `useAvailablePiecesTrayActions` split — the Phase 7
+ * scale-rule call, unchanged by Phase 8.
  */
 export function useAvailablePiecesTrayViewModel(
   props: Readonly<TelescopedProps<AvailablePiecesTrayState>>,
