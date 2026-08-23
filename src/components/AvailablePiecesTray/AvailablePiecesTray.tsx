@@ -15,11 +15,12 @@ import { PieceDisplay } from "../PieceDisplay/PieceDisplay";
 /**
  * §5.5 — the available-pieces tray: one column per distinct remaining piece value,
  * sorted ascending by the piece's base-10-encoded value, each column showing the
- * piece image (via the shared Phase 6 `PieceDisplay`) and its remaining count. The
- * tray width scales with board size (`56px × size`). Deferred to Phase 13 regardless
- * of preference values: the `*` unique-cell hint and the per-cell click-to-place
- * button list. Deferred to Phase 8: drag-and-drop interactivity — the piece images
- * here are static.
+ * piece image (via the shared Phase 6 `PieceDisplay`) and its remaining count.
+ * The tray spans the width of the board above it, so a column wraps to the next
+ * row only when the next column would not fit in that width. Deferred to Phase 13
+ * regardless of preference values: the `*` unique-cell hint and the
+ * click-to-place button list. Deferred to Phase 8: drag-and-drop; the piece
+ * images here are static.
  */
 export const AvailablePiecesTray: TelescopeComponent<AvailablePiecesTrayState> =
   function (
@@ -39,7 +40,7 @@ function RenderAvailablePiecesTray(
       <Stack
         direction="row"
         spacing={1}
-        style={{ width: `${viewModel.widthPx}px` }}
+        style={{ width: "100%" }}
         sx={{ flexWrap: "wrap", rowGap: 1 }}
       >
         {viewModel.columns.map((column) => (

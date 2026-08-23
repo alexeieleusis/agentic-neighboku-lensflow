@@ -12,7 +12,6 @@ import {
   TRAY_PIECE_IMAGE_PX,
   sortedRemainingPieces,
   trayRemainingCount,
-  trayWidthPx,
 } from "./useAvailablePiecesTrayDomain";
 
 /**
@@ -26,9 +25,7 @@ import {
 export function useAvailablePiecesTrayViewModel(
   props: Readonly<TelescopedProps<AvailablePiecesTrayState>>,
 ): AvailablePiecesTrayViewModel {
-  const { size, availablePieces } = props.state;
-
-  const widthPx = useMemo(() => trayWidthPx(size), [size]);
+  const { availablePieces } = props.state;
 
   const columns = useMemo<AvailablePiecesTrayColumn[]>(
     () =>
@@ -43,7 +40,7 @@ export function useAvailablePiecesTrayViewModel(
     [availablePieces, props.telescope],
   );
 
-  return { widthPx, columns };
+  return { columns };
 }
 
 /** `AvailablePiecesTrayState` → the piece-image slice one tray column renders. */

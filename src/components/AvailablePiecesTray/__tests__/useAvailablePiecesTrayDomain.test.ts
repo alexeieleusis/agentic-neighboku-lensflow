@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createPiece, type Piece } from "../../../game/entities";
 import {
   TRAY_PIECE_IMAGE_PX,
-  TRAY_WIDTH_PER_SIZE_PX,
   pieceBase10Value,
   sortedRemainingPieces,
   trayRemainingCount,
-  trayWidthPx,
 } from "../useAvailablePiecesTrayDomain";
 import type { Tray } from "../../../game/gameBuilder";
 
@@ -92,16 +90,6 @@ describe("trayRemainingCount (§5.5 second bullet)", () => {
   it("is 0 for a value that is fully placed (absent from the tray)", () => {
     const tray = trayOf([[[0, 2, 0], 1]]);
     expect(trayRemainingCount(tray, createPiece([2, 2, 2], 3, 3))).toBe(0);
-  });
-});
-
-describe("trayWidthPx (§5.5 width rule)", () => {
-  it("is 56px × size for each supported board size", () => {
-    expect(TRAY_WIDTH_PER_SIZE_PX).toBe(56);
-    expect(trayWidthPx(4)).toBe(224);
-    expect(trayWidthPx(6)).toBe(336);
-    expect(trayWidthPx(12)).toBe(672);
-    expect(trayWidthPx(16)).toBe(896);
   });
 });
 

@@ -5,9 +5,9 @@ import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
 
 /**
  * §5.5 — the complete, self-describing state slice for the available-pieces tray: the
- * current board size (the tray's width scales as `56px × size`) and the move engine's
- * remaining-pieces map (the domain `Tray`: one entry per distinct piece value, keyed to
- * how many copies of that value are still unplaced — §3.4/§3.5 step 3).
+ * current board size and the move engine's remaining-pieces map (the domain `Tray`:
+ * one entry per distinct piece value, keyed to how many copies of that value are
+ * still unplaced — §3.4/§3.5 step 3).
  */
 export interface AvailablePiecesTrayState {
   readonly size: number;
@@ -28,8 +28,10 @@ export interface AvailablePiecesTrayColumn {
 
 /** Everything `RenderAvailablePiecesTray` needs, precomputed by `useAvailablePiecesTrayViewModel`. */
 export interface AvailablePiecesTrayViewModel {
-  /** The §5.5 tray width in px: `56 × size`. */
-  readonly widthPx: number;
-  /** One column per distinct remaining piece value, ascending by base-10-encoded value. */
+  /**
+   * One column per distinct remaining piece value, ascending by base-10-encoded
+   * value. The columns lay out in a full-board-width row that wraps only when the
+   * next column would not fit.
+   */
   readonly columns: readonly AvailablePiecesTrayColumn[];
 }

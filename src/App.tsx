@@ -47,8 +47,8 @@ import type {
  * still placeholder-level at the cell edge: filled cells do not yet use the shared
  * `PieceDisplay` from Phase 6, and there is no hint logic (Phase 12). The tray now
  * renders as Phase 7's `AvailablePiecesTray` (§5.5: one column per distinct remaining
- * piece value, counts, ascending sort, `56px × size` width — the `*` hint and
- * click-to-place buttons are Phase 13, the drag wiring Phase 8). The top bar remains
+ * piece value, counts, ascending sort, wrapping at the board's width — the `*` hint
+ * and click-to-place buttons are Phase 13, the drag wiring Phase 8). The top bar remains
  * a bare-bones placeholder. The Snackbar (§5.13/§5.12) and the game-finished Dialog
  * (§3.6/§5.13) are present but closed/inactive.
  */
@@ -162,8 +162,7 @@ const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
 
 /**
  * The remaining tray slice the `AvailablePiecesTray` renders (§5.5): the board size
- * (which drives the `56px × size` tray-width rule) plus the move engine's remaining
- * pieces, one entry per distinct piece value.
+ * plus the move engine's remaining pieces, one entry per distinct piece value.
  */
 function buildAvailablePiecesTrayState(game: Game): AvailablePiecesTrayState {
   return {

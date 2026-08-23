@@ -42,9 +42,10 @@ const meta = {
 export default meta;
 
 /**
- * Mid-game tray on a 6×6 board (width 336px). Map insertion order is deliberately
- * unsorted to confirm the columns render ascending by base-10-encoded value
- * (0,0,0 → 0, then 0,2,0 → 20, then 1,0,0 → 100, then 1,1,1 → 111, then 2,1,0 → 210).
+ * Mid-game tray on a 6×6 board. Map insertion order is deliberately unsorted to
+ * confirm the columns render ascending by base-10-encoded value (0,0,0 → 0, then
+ * 0,2,0 → 20, then 1,0,0 → 100, then 1,1,1 → 111, then 2,1,0 → 210). The tray spans
+ * the width of the board above it and wraps only when the next column would not fit.
  */
 export const Default: StoryObj<typeof meta> = {
   args: {
@@ -60,8 +61,9 @@ export const Default: StoryObj<typeof meta> = {
 };
 
 /**
- * The §5.5 width rule made visible: the same tray on a 12×12 board is 672px wide vs
- * 336px on the Default's 6×6. Compare the two stories side by side.
+ * The same tray on a 12×12 board: since the tray spans the board's width, a wider
+ * board gives the same columns more room before they wrap. Compare side by side with
+ * Default.
  */
 export const LargeBoard: StoryObj<typeof meta> = {
   args: {

@@ -32,7 +32,7 @@ function renderViewModel(state: AvailablePiecesTrayState) {
 }
 
 describe("useAvailablePiecesTrayViewModel", () => {
-  it("derives the §5.5 width and one sorted column per remaining value", () => {
+  it("derives one sorted column per remaining value", () => {
     const { result } = renderViewModel({
       size: 6,
       availablePieces: trayOf([
@@ -43,7 +43,6 @@ describe("useAvailablePiecesTrayViewModel", () => {
       ]),
     });
 
-    expect(result.current.widthPx).toBe(56 * 6);
     // The zero-count value ([1,0,0]) gets no column; the rest sort ascending by
     // base-10 value: [0,0,0]→0, [0,2,0]→20, [1,1,1]→111.
     expect(result.current.columns.map((c) => [...c.piece])).toEqual([

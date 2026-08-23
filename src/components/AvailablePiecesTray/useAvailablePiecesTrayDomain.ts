@@ -7,13 +7,11 @@ import type { Tray } from "../../game/gameBuilder";
  * (requirements §7.5) — see __tests__/useAvailablePiecesTrayDomain.test.ts.
  */
 
-/** §5.5: for a `size × size` board the tray is `56px × size` wide in total. */
-export const TRAY_WIDTH_PER_SIZE_PX = 56;
-
 /**
  * Pixel edge a tray column renders its piece image at via the shared Phase 6
- * `PieceDisplay`. §5.5 fixes only the total tray width, so this is a layout choice of
- * the rebuild, kept here with the other tray layout constants.
+ * `PieceDisplay`. A layout choice of the rebuild: the tray row spans the board's
+ * width and wraps when the next column would not fit, so no size-derived total
+ * width is needed.
  */
 export const TRAY_PIECE_IMAGE_PX = 48;
 
@@ -51,9 +49,4 @@ export function sortedRemainingPieces(tray: Tray): readonly Piece[] {
  */
 export function trayRemainingCount(tray: Tray, piece: Piece): number {
   return tray.get(piece) ?? 0;
-}
-
-/** §5.5: `56px × size`, in px. */
-export function trayWidthPx(size: number): number {
-  return TRAY_WIDTH_PER_SIZE_PX * size;
 }

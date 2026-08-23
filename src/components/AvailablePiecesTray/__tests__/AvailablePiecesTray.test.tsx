@@ -88,12 +88,15 @@ describe("AvailablePiecesTray (§5.5)", () => {
     expect(container.querySelectorAll("rect").length).toBe(0);
   });
 
-  it("scales the tray width as 56px × size", () => {
+  it("spans the width of the board (columns wrap only when the next column would not fit)", () => {
     const { container } = renderTray(MID_GAME_STATE);
-    const widthEl = Array.from(
+    // The column row is 100% wide — the same width the board above it fills — so a
+    // column drops to the next row only when it would not fit here (the row keeps
+    // `flexWrap: "wrap"`, asserted visually in the stories).
+    const rowEl = Array.from(
       container.querySelectorAll<HTMLElement>("[style]"),
-    ).find((el) => el.style.width === `${56 * 6}px`);
-    expect(widthEl).toBeTruthy();
+    ).find((el) => el.style.width === "100%");
+    expect(rowEl).toBeTruthy();
   });
 
   it("renders no `*` hint and no click-to-place buttons (Phase 13 scope)", () => {
