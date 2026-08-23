@@ -46,8 +46,9 @@ export interface SolvabilityHintFlag {
 }
 
 /** §4.2 hint toggles, nested under `AppPreferences`'s single `hints` member. */
-export type HintPreferences =
-  FitHintFlags & AvailableHintFlags & SolvabilityHintFlag;
+export type HintPreferences = FitHintFlags &
+  AvailableHintFlags &
+  SolvabilityHintFlag;
 
 /**
  * The wide, user-facing preferences (requirements §4.2). Distinct from the domain
