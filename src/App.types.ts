@@ -20,16 +20,28 @@ export interface PreferenceScalars {
   readonly size: number;
 }
 
-/** §4.2 hint toggles, nested under `AppPreferences`'s single `hints` member. */
-export interface HintPreferences {
+/** §4.2 hint toggles for the “does it fit” preview. */
+export interface FitHintFlags {
   readonly fitPieceCount: boolean;
   readonly pieceCells: boolean;
   readonly fitOnDrag: boolean;
   readonly showFitPiecesOnHover: boolean;
+}
+
+/** §4.2 hint toggles for the available-pieces tray. */
+export interface AvailableHintFlags {
   readonly availablePiecesCount: boolean;
   readonly availablePieceUniqueCell: boolean;
+}
+
+/** §4.2 hint toggle for the solvability indicator. */
+export interface SolvabilityHintFlag {
   readonly gameIsSolvable: boolean;
 }
+
+/** §4.2 hint toggles, nested under `AppPreferences`'s single `hints` member. */
+export type HintPreferences =
+  FitHintFlags & AvailableHintFlags & SolvabilityHintFlag;
 
 /**
  * The wide, user-facing preferences (requirements §4.2). Distinct from the domain
