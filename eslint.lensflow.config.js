@@ -23,6 +23,7 @@ export default tseslint.config(
     files: ["src/**/__tests__/**/*.{ts,tsx}"],
     rules: {
       "lensflow/no-callback-pyramid": "off",
+      "lensflow/require-smart-constructor-validation": "off",
     },
   },
 );
