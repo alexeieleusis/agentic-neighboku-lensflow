@@ -79,7 +79,7 @@ describe("useAvailablePiecesTrayViewModel", () => {
   });
 
   it("tracks the tray state as the underlying game state changes", () => {
-    const telescope = Telescope.of<AvailablePiecesTrayState>({
+    const telescope = Telescope.of({
       size: 6,
       availablePieces: trayOf([
         [[0, 0, 0], 2],
