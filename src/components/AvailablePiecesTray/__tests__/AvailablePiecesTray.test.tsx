@@ -49,7 +49,7 @@ const MID_GAME_STATE: AvailablePiecesTrayState = {
     [[0, 0, 0], 3],
     [[2, 0, 0], 0],
   ]),
-};
+} as const;
 
 const EXPECTED_TITLES = [
   "circle, red border, aquamarine fill", // [0,0,0]
