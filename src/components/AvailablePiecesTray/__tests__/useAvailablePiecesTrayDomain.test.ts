@@ -71,6 +71,26 @@ describe("sortedRemainingPieces (§5.5 first bullet)", () => {
     sortedRemainingPieces(tray);
     expect([...tray]).toEqual(before);
   });
+
+  it("throws when the remaining tray mixes attribute lengths (the base-10 key is only order-preserving within one digit length)", () => {
+    // [2] (base-10 = 2) collides with [0, 2] (base-10 = 2) and misorders against
+    // [1, 0] (base-10 = 10); a mixed-length tray has no stable "ascending" order,
+    // so the guard turns it into a contract violation instead of a silent mis-sort.
+    const tray = new Map<Piece, number>([
+      [createPiece([2], 1, 3), 1],
+      [createPiece([1, 0], 2, 3), 1],
+      [createPiece([0, 2], 2, 3), 1],
+    ]);
+    expect(() => sortedRemainingPieces(tray)).toThrow(RangeError);
+  });
+
+  it("does not trip the dimension guard for a zero-count piece of a different length", () => {
+    const tray = new Map<Piece, number>([
+      [createPiece([0, 0, 0], 3, 3), 1],
+      [createPiece([1, 2], 2, 3), 0],
+    ]);
+    expect(sortedRemainingPieces(tray)).toEqual([createPiece([0, 0, 0], 3, 3)]);
+  });
 });
 
 describe("trayRemainingCount (§5.5 second bullet)", () => {
