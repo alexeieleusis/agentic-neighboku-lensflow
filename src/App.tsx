@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { DndContext, pointerWithin } from "@dnd-kit/core";
 import AppBar from "@mui/material/AppBar";
-import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -23,18 +22,13 @@ import type {
   TelescopeComponent,
   TelescopedProps,
 } from "./base/TelescopeComponent.ts";
-import type {
-  AppState,
-  AppViewModel,
-  TrayColumnView,
-  TrayView,
-  TopBarView,
-} from "./App.types.ts";
-import type { Piece } from "./game/entities.ts";
+import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
 import { stateIsValid } from "./game/gameBuilder.ts";
 import type { Game } from "./game/gameBuilder.ts";
 import { Lens } from "telescopejs";
 import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
+import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailablePiecesTray.tsx";
+import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type {
   BoardCell,
   PieceType,
@@ -50,11 +44,13 @@ import type {
  * and the shared shell-level `DndContext` ancestor (requirements §5.1,
  * docs/CONVENTIONS.md dnd-kit note). The board now renders as Phase 5's
  * `BoardDisplay`/`RowDisplay`/`CellDisplay` (§5.2) — section-colored CSS grid, but
- * still placeholder-level at the cell edge: no piece graphics yet (Phase 6), no hint
- * logic (Phase 12). The top bar and tray remain bare-bones placeholder renderings;
- * their full presentation lands in later phases (PieceDisplay §5.3/§5.4, the real
- * tray §5.5, and the dnd wiring §5.6). The Snackbar (§5.13/§5.12) and the
- * game-finished Dialog (§3.6/§5.13) are present but closed/inactive.
+ * still placeholder-level at the cell edge: filled cells do not yet use the shared
+ * `PieceDisplay` from Phase 6, and there is no hint logic (Phase 12). The tray now
+ * renders as Phase 7's `AvailablePiecesTray` (§5.5: one column per distinct remaining
+ * piece value, counts, ascending sort, wrapping at the board's width — the `*` hint
+ * and click-to-place buttons are Phase 13, the drag wiring Phase 8). The top bar remains
+ * a bare-bones placeholder. The Snackbar (§5.13/§5.12) and the game-finished Dialog
+ * (§3.6/§5.13) are present but closed/inactive.
  */
 export const App: TelescopeComponent<AppState> = (
   props: TelescopedProps<AppState>,
@@ -94,9 +90,17 @@ function useAppViewModel(
     [game, preferences.pieceType, props.telescope],
   );
 
-  const tray = useMemo<TrayView>(
-    () => ({ columns: mapTrayToViewModel(game) }),
-    [game],
+  // App → AvailablePiecesTray (§7.2): a read-only magnification of the shell
+  // telescope onto the tray slice. The tray is a derived view of
+  // `game.availablePieces` (+ `game.size`), so no action writes through it this phase
+  // — the magnified telescope's stream simply mirrors the shell state's tray slice,
+  // exactly like the board's.
+  const tray = useMemo<TelescopedProps<AvailablePiecesTrayState>>(
+    () => ({
+      state: buildAvailablePiecesTrayState(game),
+      telescope: props.telescope.magnify(AVAILABLE_PIECES_TRAY_LENS),
+    }),
+    [game, props.telescope],
   );
 
   const topBar = useMemo<TopBarView>(
@@ -156,19 +160,28 @@ const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
   (_boardState, state) => state,
 );
 
-/** The remaining tray pieces, one view-model column per distinct piece value. */
-function mapTrayToViewModel(game: Game): readonly TrayColumnView[] {
-  const columns: TrayColumnView[] = [];
-  for (const [piece, count] of game.availablePieces) {
-    columns.push({ piece, count });
-  }
-  return columns;
+/**
+ * The remaining tray slice the `AvailablePiecesTray` renders (§5.5): the board size
+ * plus the move engine's remaining pieces, one entry per distinct piece value.
+ */
+function buildAvailablePiecesTrayState(game: Game): AvailablePiecesTrayState {
+  return {
+    size: game.size,
+    availablePieces: game.availablePieces,
+  };
 }
 
-/** Bare-bones text for a piece until Phase 6 introduces `PieceDisplay`. */
-function pieceDisplay(piece: Piece): string {
-  return piece.join(",");
-}
+/**
+ * The App → AvailablePiecesTray magnification (§7.2). The getter derives the tray
+ * slice from the shell state; the setter is deliberately the identity: the tray is a
+ * read-only projection of `game.availablePieces` this phase, so any write through the
+ * tray telescope is a no-op until Phase 8 routes placement through the move engine
+ * (which rebuilds `game` wholesale and updates the shell telescope, not this slice).
+ */
+const AVAILABLE_PIECES_TRAY_LENS = new Lens<AppState, AvailablePiecesTrayState>(
+  (state) => buildAvailablePiecesTrayState(state.game),
+  (_trayState, state) => state,
+);
 
 /* -------------------------------------------------------------------------- */
 /* RenderApp                                                                  */
@@ -289,9 +302,10 @@ function AppBoardTray(
 }
 
 /**
- * The DndContext-descendant that renders the `BoardDisplay` (§5.2) + the bare-bones
- * tray. This is where a later phase will call `useDraggable`/`useDroppable`/
- * `useDndMonitor` (and register the `useDndMonitor` drag-end handling).
+ * The DndContext-descendant that renders the `BoardDisplay` (§5.2) + the Phase 7
+ * `AvailablePiecesTray` (§5.5). This is where a later phase will call
+ * `useDraggable`/`useDroppable`/`useDndMonitor` (and register the `useDndMonitor`
+ * drag-end handling).
  */
 function AppBoardTrayBoard(
   props: Readonly<{ viewModel: Readonly<AppViewModel> }>,
@@ -300,51 +314,8 @@ function AppBoardTrayBoard(
   return (
     <Stack spacing={2}>
       <BoardDisplay {...board} />
-      <RenderTray tray={tray} />
+      <AvailablePiecesTray {...tray} />
     </Stack>
-  );
-}
-
-function RenderTray(
-  props: Readonly<{ tray: Readonly<TrayView> }>,
-): React.ReactElement {
-  const { tray } = props;
-  return (
-    <Box>
-      <Typography variant="subtitle2" component="div" sx={{ mb: 1 }}>
-        Piece tray
-      </Typography>
-      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
-        {tray.columns.map((column) => (
-          <TrayColumn key={pieceDisplay(column.piece)} column={column} />
-        ))}
-      </Stack>
-    </Box>
-  );
-}
-
-function TrayColumn(
-  props: Readonly<{ column: Readonly<TrayColumnView> }>,
-): React.ReactElement {
-  const { column } = props;
-  return (
-    <Box
-      sx={{
-        display: "inline-flex",
-        alignItems: "baseline",
-        gap: "0.5rem",
-        px: 1,
-        py: 0.5,
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 0.5,
-      }}
-    >
-      <Typography variant="caption">{pieceDisplay(column.piece)}</Typography>
-      <Typography variant="caption" sx={{ color: "text.secondary" }}>
-        ×{column.count}
-      </Typography>
-    </Box>
   );
 }
 

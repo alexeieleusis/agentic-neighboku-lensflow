@@ -1,8 +1,8 @@
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import type { Game } from "./game/gameBuilder.ts";
-import type { Piece } from "./game/entities.ts";
 import type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
+import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -20,16 +20,35 @@ export interface PreferenceScalars {
   readonly size: number;
 }
 
-/** §4.2 hint toggles, nested under `AppPreferences`'s single `hints` member. */
-export interface HintPreferences {
+/**
+ * §4.2 hint toggles for the “does it fit” preview. Independent user preferences
+ * (defaults enable several at once — see `defaultPreferences` in `main.tsx`), not
+ * mutually exclusive states — so they stay parallel booleans rather than a
+ * discriminated union (UC13 “When Not to Use It”: independent simple flags).
+ */
+// eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
+export interface FitHintFlags {
   readonly fitPieceCount: boolean;
   readonly pieceCells: boolean;
   readonly fitOnDrag: boolean;
   readonly showFitPiecesOnHover: boolean;
+}
+
+/** §4.2 hint toggles for the available-pieces tray. */
+export interface AvailableHintFlags {
   readonly availablePiecesCount: boolean;
   readonly availablePieceUniqueCell: boolean;
+}
+
+/** §4.2 hint toggle for the solvability indicator. */
+export interface SolvabilityHintFlag {
   readonly gameIsSolvable: boolean;
 }
+
+/** §4.2 hint toggles, nested under `AppPreferences`'s single `hints` member. */
+export type HintPreferences = FitHintFlags &
+  AvailableHintFlags &
+  SolvabilityHintFlag;
 
 /**
  * The wide, user-facing preferences (requirements §4.2). Distinct from the domain
@@ -62,17 +81,6 @@ export interface AppState {
 /* View-model shapes consumed by RenderApp                                     */
 /* -------------------------------------------------------------------------- */
 
-/** One tray column: a distinct remaining piece value and how many copies remain. */
-export interface TrayColumnView {
-  readonly piece: Piece;
-  readonly count: number;
-}
-
-/** The placeholder-level tray (full tray columns land in Phase 7). */
-export interface TrayView {
-  readonly columns: readonly TrayColumnView[];
-}
-
 /** The top-bar solvability indicator (requirements §5.1, §5.13). */
 export interface SolvabilityView {
   readonly visible: boolean;
@@ -93,7 +101,12 @@ export interface AppViewModel {
    * through the move engine once placement exists (Phase 8).
    */
   readonly board: TelescopedProps<BoardDisplayState>;
-  readonly tray: TrayView;
+  /**
+   * The Phase 7 tray slice: `AvailablePiecesTrayState` plus a magnified child telescope
+   * (`App` → `AvailablePiecesTray`, §7.2). Read-only in this phase — tray writes flow
+   * through the move engine once placement exists (Phase 8).
+   */
+  readonly tray: TelescopedProps<AvailablePiecesTrayState>;
   readonly topBar: TopBarView;
   readonly snackbarOpen: boolean;
   readonly dialogOpen: boolean;
