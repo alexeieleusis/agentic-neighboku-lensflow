@@ -14,7 +14,7 @@ afterEach(() => {
   cleanup();
 });
 
-const PREFERENCES: AppPreferences = {
+const PREFERENCES = {
   scalars: { base: 3, dimension: 3, size: 4 },
   pieceType: "Shapes",
   hints: {
@@ -28,7 +28,7 @@ const PREFERENCES: AppPreferences = {
   },
   preventInvalidMoves: true,
   sound: false,
-};
+} satisfies AppPreferences;
 
 function buildAppState(): AppState {
   return {
