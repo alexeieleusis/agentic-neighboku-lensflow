@@ -139,9 +139,10 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     // §7.6: every input mode lands on the single shared context — no mobile-only
     // DndContext, no forked code path:
     const bySensor = new Map(
-      (sensors ?? []).map(
-        (descriptor) => [descriptor.sensor, descriptor.options] as const,
-      ),
+      (sensors ?? []).map((descriptor): [unknown, unknown] => [
+        descriptor.sensor,
+        descriptor.options,
+      ]),
     );
 
     // §5.6 desktop pointer — exactly the unconstrained sensor the library defaults
