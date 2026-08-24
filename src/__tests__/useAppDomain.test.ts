@@ -79,12 +79,23 @@ function pickIllegalPlacement(game: Game): readonly [Piece, Cell] | null {
   return null;
 }
 
+/** Fixture invariant: fit-cache keys are derived from the tray, so an entry exists. */
+function trayCount(game: Game, piece: Piece): number {
+  const count = game.availablePieces.get(piece);
+  if (count === undefined) {
+    throw new Error(
+      "fixture: piece from fit cache missing from tray (impossible)",
+    );
+  }
+  return count;
+}
+
 describe("useAppDomain (§5.6 drag-drop resolution)", () => {
   it("commits a legal drop through placePiece: board filled, tray decremented, move recorded", () => {
     const state = buildState(buildGame());
     const [piece, [row, col]] = pickLegalPlacement(state.game);
     const targetIdx = cellIndex(state.game.size, row, col);
-    const trayBefore = state.game.availablePieces.get(piece)!;
+    const trayBefore = trayCount(state.game, piece);
 
     const next = resolveDragDrop(state, {
       activeId: trayPieceDraggableId(piece),
