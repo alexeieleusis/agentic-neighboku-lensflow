@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { Lens } from "telescopejs";
 import {
   DndContext,
   KeyboardSensor,
@@ -21,7 +23,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SettingsIcon from "@mui/icons-material/Settings";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import UndoIcon from "@mui/icons-material/Undo";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import HelpIcon from "@mui/icons-material/Help";
@@ -30,10 +31,13 @@ import type {
   TelescopedProps,
 } from "./base/TelescopeComponent.ts";
 import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
+import { undoPlay } from "./game/gameBuilder.ts";
 import { useAppActions } from "./useAppActions.ts";
 import { useAppViewModel } from "./useAppViewModel.ts";
 import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
 import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailablePiecesTray.tsx";
+import { UndoButton } from "./components/UndoButton/UndoButton.tsx";
+import type { UndoButtonState } from "./components/UndoButton/UndoButton.types.ts";
 
 /**
  * Root application shell (requirements §5.1) and the shared shell-level `DndContext`
@@ -105,26 +109,71 @@ export const App: TelescopeComponent<AppState> = (
 /**
  * The `DndContext` descendant that runs the shell's hook tiers and renders the shell:
  * the view model (`useAppViewModel` — the `state,telescope → useXViewModel → RenderX`
- * contract, requirements §7.2) and the drag-end monitor (`useAppActions.onDragEnd`,
+ * contract, requirements §7.2), the drag-end monitor (`useAppActions.onDragEnd`,
  * registered via `useDndMonitor`, which reads the dropped piece's value and the target
  * cell off the event and commits through `placePiece` — the shared placement path,
- * §5.6; Phase 13's click-to-place will call the same path).
+ * §5.6; Phase 13's click-to-place will call the same path), and the Phase 10 undo
+ * slice (`useUndoSlice` — the App → `UndoButton` §7.2 magnification).
  */
 function AppConnected(
   props: Readonly<TelescopedProps<AppState>>,
 ): React.ReactElement {
   useAppActions(props);
-  return RenderApp(useAppViewModel(props));
+  const viewModel = useAppViewModel(props);
+  const undo = useUndoSlice(props);
+  return RenderApp({ viewModel, undo });
+}
+
+/* -------------------------------------------------------------------------- */
+/* App → UndoButton magnification (Phase 10, §5.7)                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The App → UndoButton magnification (§7.2, Phase 10). `get` projects the
+ * move-history depth; `set` is the commit path: any write through the button's
+ * telescope applies Phase 3's `undoPlay` to the shell's `game` (tray restore,
+ * cell blanking, both fit caches recomputed — §3.5). The written slice value is
+ * the slice the button declares it expects after undoing one move; the setter
+ * realises it by evolving `game` rather than the slice itself, because only the
+ * move engine can derive the rest of the new `Game`. The empty-history guard
+ * (§8.4) lives on the button side, not here: `set` applies `undoPlay` unguarded.
+ */
+const UNDO_BUTTON_LENS = new Lens<AppState, UndoButtonState>(
+  (state) => ({ placedMoves: state.game.placedCells.length }),
+  (_undoState, state) => ({ ...state, game: undoPlay(state.game) }),
+);
+
+/**
+ * The `UndoButton`'s slice (`TelescopedProps<UndoButtonState>`), mirroring the
+ * board/tray slice derivations in `useAppViewModel.ts` — a snapshot of the
+ * current move-history depth plus the magnified child telescope. Lived here in
+ * the shell rather than in `useAppViewModel.ts` because Phase 10's scope is
+ * limited to `App.tsx` plus the `UndoButton` component files.
+ */
+function useUndoSlice(
+  props: Readonly<TelescopedProps<AppState>>,
+): TelescopedProps<UndoButtonState> {
+  return useMemo(
+    () => ({
+      state: { placedMoves: props.state.game.placedCells.length },
+      telescope: props.telescope.magnify(UNDO_BUTTON_LENS),
+    }),
+    [props.state.game, props.telescope],
+  );
 }
 
 /* -------------------------------------------------------------------------- */
 /* RenderApp                                                                  */
 /* -------------------------------------------------------------------------- */
 
-function RenderApp(viewModel: Readonly<AppViewModel>): React.ReactElement {
+function RenderApp(props: {
+  readonly viewModel: Readonly<AppViewModel>;
+  readonly undo: TelescopedProps<UndoButtonState>;
+}): React.ReactElement {
+  const { viewModel, undo } = props;
   return (
     <Stack spacing={2} sx={{ p: 2, maxWidth: "44rem", mx: "auto" }}>
-      <RenderTopBar topBar={viewModel.topBar} />
+      <RenderTopBar topBar={viewModel.topBar} undo={undo} />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar open={viewModel.snackbarOpen} />
       <RenderGameFinishedDialog open={viewModel.dialogOpen} />
@@ -141,13 +190,14 @@ function RenderApp(viewModel: Readonly<AppViewModel>): React.ReactElement {
  * drag-fit-hint icon, Preferences button, New Game button, Undo button, solvability
  * icon, Help button. The Preferences / New Game / Help buttons and the drag-fit-hint
  * icon are inert this phase (later phases wire their panels); the icon's live drag
- * state (§5.6's `DragHint`) lands in Phase 14. Only Undo (disabled state) and the
+ * state (§5.6's `DragHint`) lands in Phase 14. The Undo button (Phase 10) and the
  * solvability icon are derived from state.
  */
-function RenderTopBar(
-  props: Readonly<{ topBar: Readonly<TopBarView> }>,
-): React.ReactElement {
-  const { topBar } = props;
+function RenderTopBar(props: {
+  readonly topBar: Readonly<TopBarView>;
+  readonly undo: TelescopedProps<UndoButtonState>;
+}): React.ReactElement {
+  const { topBar, undo } = props;
   const solvability = topBar.solvability;
 
   let solvabilityIcon: React.ReactElement | null = null;
@@ -190,19 +240,12 @@ function RenderTopBar(
               <RestartAltIcon />
             </IconButton>
           </Tooltip>
-          {topBar.undoEnabled ? (
-            <Tooltip title="Undo">
-              <IconButton size="small" aria-label="Undo">
-                <UndoIcon />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            // No Tooltip wrapper while disabled: the button has no hover surface,
-            // and MUI warns on a disabled button inside a Tooltip.
-            <IconButton size="small" aria-label="Undo" disabled>
-              <UndoIcon />
-            </IconButton>
-          )}
+          {/*
+           * Phase 10: the Undo slot is now the child component proper. Enabled/disabled
+           * and click handling live entirely in `UndoButton` + its slice (§5.7/§8.4
+           * — the only empty-`placedCells` guard); this shell just places it.
+           */}
+          <UndoButton {...undo} />
           {solvabilityIcon}
           <Tooltip title="Help">
             <IconButton size="small" aria-label="Help">
