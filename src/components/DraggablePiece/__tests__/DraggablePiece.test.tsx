@@ -6,7 +6,7 @@ import { Telescope } from "telescopejs";
 import { createPiece } from "../../../game/entities";
 import type { TelescopedProps } from "../../../base/TelescopeComponent";
 import { DraggablePiece } from "../DraggablePiece";
-import type { DraggablePieceState } from "../DraggablePiece.types";
+import type { PieceDisplayState } from "../../PieceDisplay/PieceDisplay.types";
 import { useDraggablePieceViewModel } from "../useDraggablePieceViewModel";
 
 // @testing-library/react's auto-cleanup only hooks in when Vitest's `globals` mode is
@@ -18,8 +18,8 @@ afterEach(() => {
 function pieceState(
   digits: readonly number[],
   size = 48,
-): TelescopedProps<DraggablePieceState> {
-  const state: DraggablePieceState = {
+): TelescopedProps<PieceDisplayState> {
+  const state: PieceDisplayState = {
     piece: createPiece(digits, 3, 3),
     size,
   };

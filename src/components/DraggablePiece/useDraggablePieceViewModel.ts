@@ -1,12 +1,7 @@
-import { useMemo } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { Lens } from "telescopejs";
 import type { TelescopedProps } from "../../base/TelescopeComponent";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
-import type {
-  DraggablePieceState,
-  DraggablePieceViewModel,
-} from "./DraggablePiece.types";
+import type { DraggablePieceViewModel } from "./DraggablePiece.types";
 import {
   dragPieceStyle,
   trayPieceDraggableId,
@@ -23,23 +18,18 @@ import {
  * `useDraggable` registers with the nearest ancestor `DndContext` via React context
  * (docs/CONVENTIONS.md dnd-kit note), which this component always has: the tray renders
  * it under the shell-level `<DndContext>` that `App` constructs.
+ *
+ * The tray's piece-image slice is already `PieceDisplayState`, so the wrapped
+ * `PieceDisplay` receives it unchanged — there is no intermediate state to re-magnify.
  */
 export function useDraggablePieceViewModel(
-  props: Readonly<TelescopedProps<DraggablePieceState>>,
+  props: Readonly<TelescopedProps<PieceDisplayState>>,
 ): DraggablePieceViewModel {
-  const { piece, size } = props.state;
+  const { piece } = props.state;
   const draggable = useDraggable({ id: trayPieceDraggableId(piece) });
 
-  const pieceImage = useMemo<TelescopedProps<PieceDisplayState>>(
-    () => ({
-      state: { piece, size },
-      telescope: props.telescope.magnify(PIECE_IMAGE_LENS),
-    }),
-    [piece, size, props.telescope],
-  );
-
   return {
-    pieceImage,
+    pieceImage: props,
     dragNodeRef: draggable.setNodeRef,
     listeners: draggable.listeners,
     attributes: draggable.attributes,
@@ -47,15 +37,3 @@ export function useDraggablePieceViewModel(
     dragStyle: dragPieceStyle(draggable.transform, draggable.isDragging),
   };
 }
-
-/**
- * The magnification focusing the draggable-piece telescope down to the piece image it
- * renders. Same deliberate asymmetry as the read-only board/tray slices in
- * `src/useAppViewModel.ts`: the piece value and the render size are immutable facts for
- * the lifetime of this column, so writes through the slice are the identity no-op and
- * the magnified stream simply mirrors.
- */
-const PIECE_IMAGE_LENS = new Lens<DraggablePieceState, PieceDisplayState>(
-  (state) => ({ piece: state.piece, size: state.size }),
-  (_pieceImage, state) => state,
-);

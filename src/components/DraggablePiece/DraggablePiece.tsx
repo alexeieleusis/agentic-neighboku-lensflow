@@ -3,10 +3,8 @@ import type {
   TelescopeComponent,
   TelescopedProps,
 } from "../../base/TelescopeComponent";
-import type {
-  DraggablePieceState,
-  DraggablePieceViewModel,
-} from "./DraggablePiece.types";
+import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
+import type { DraggablePieceViewModel } from "./DraggablePiece.types";
 import { useDraggablePieceViewModel } from "./useDraggablePieceViewModel";
 import { PieceDisplay } from "../PieceDisplay/PieceDisplay";
 
@@ -21,10 +19,11 @@ import { PieceDisplay } from "../PieceDisplay/PieceDisplay";
  * note); dropping it onto a blank board cell is committed by the shell's `handleDragEnd`
  * (Phase 13's click-to-place will share the same `placePiece` path).
  */
-export const DraggablePiece: TelescopeComponent<DraggablePieceState> =
-  function (props: TelescopedProps<DraggablePieceState>): React.ReactElement {
-    return RenderDraggablePiece(useDraggablePieceViewModel(props));
-  };
+export const DraggablePiece: TelescopeComponent<PieceDisplayState> = function (
+  props: TelescopedProps<PieceDisplayState>,
+): React.ReactElement {
+  return RenderDraggablePiece(useDraggablePieceViewModel(props));
+};
 
 function RenderDraggablePiece(
   viewModel: Readonly<DraggablePieceViewModel>,
