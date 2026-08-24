@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { DndContext } from "@dnd-kit/core";
-import type { DragEndEvent, Active, Over } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { Telescope } from "telescopejs";
 import type { AppState } from "../App.types";
 import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
@@ -51,14 +51,35 @@ function pickLegalPlacement(
   throw new Error("fixture: no legal placement (impossible)");
 }
 
+const ZERO_RECT = {
+  width: 0,
+  height: 0,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+} as const;
+
 /** A structurally-valid DragEndEvent carrying only the ids the monitor reads. */
 function dragEndEvent(activeId: string, overId: string | null): DragEndEvent {
   return {
     activatorEvent: new Event("pointerdown"),
-    active: { id: activeId } as unknown as Active,
+    active: {
+      id: activeId,
+      data: { current: undefined },
+      rect: { current: { initial: null, translated: null } },
+    },
     collisions: null,
     delta: { x: 0, y: 0 },
-    over: overId === null ? null : ({ id: overId } as unknown as Over),
+    over:
+      overId === null
+        ? null
+        : {
+            id: overId,
+            rect: ZERO_RECT,
+            disabled: false,
+            data: { current: undefined },
+          },
   };
 }
 
