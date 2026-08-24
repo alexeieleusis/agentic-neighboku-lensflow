@@ -51,6 +51,12 @@ export function dragPieceStyle(
   transform: Transform | null,
   isDragging: boolean,
 ): CSSProperties {
+  // Deliberately a `: CSSProperties` annotation, not `satisfies CSSProperties`: the style
+  // object is built incrementally — `style.transform`/`style.zIndex` are assigned below —
+  // and `satisfies` would pin the variable to the initial literal's type, making those
+  // assignments type errors. The value is immediately returned under the function-level
+  // `CSSProperties` return type, so no literal precision is lost.
+  // eslint-disable-next-line lensflow/prefer-satisfies-over-annotation
   const style: CSSProperties = {
     touchAction: "none",
     cursor: isDragging ? "grabbing" : "grab",
