@@ -62,11 +62,11 @@ function pickLegalPlacement(game: Game): readonly [Piece, Cell] {
 }
 
 /**
- * A (piece, blank cell) pair where the piece does NOT legally fit the cell — or
- * `null` if the fixture has no such pair. The piece must be one the tray still holds
- * (otherwise the drop is rejected by tray lookup long before the fit check).
+ * A (piece, blank cell) pair where the piece does NOT legally fit the cell. The piece
+ * must be one the tray still holds (otherwise the drop is rejected by tray lookup
+ * long before the fit check).
  */
-function pickIllegalPlacement(game: Game): readonly [Piece, Cell] | null {
+function pickIllegalPlacement(game: Game): readonly [Piece, Cell] {
   for (const [piece, count] of game.availablePieces) {
     if (count === 0) continue;
     for (const idx of game.cellToFitPieces.keys()) {
@@ -76,7 +76,9 @@ function pickIllegalPlacement(game: Game): readonly [Piece, Cell] | null {
       }
     }
   }
-  return null;
+  throw new Error(
+    "fixture: unfolded game has no illegal placement (impossible)",
+  );
 }
 
 /** Fixture invariant: fit-cache keys are derived from the tray, so an entry exists. */
@@ -201,9 +203,7 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
 
     // In-range but not a legal cell for that piece, with preventInvalidMoves on:
     // placePiece throws (§3.5 step 2, before any mutation) and the drop is a no-op.
-    const illegal = pickIllegalPlacement(state.game);
-    expect(illegal).not.toBeNull();
-    const [badPiece, badCell] = illegal!;
+    const [badPiece, badCell] = pickIllegalPlacement(state.game);
     expect(
       resolveDragDrop(state, {
         activeId: trayPieceDraggableId(badPiece),
