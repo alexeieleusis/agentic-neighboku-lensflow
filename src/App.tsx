@@ -1,4 +1,12 @@
-import { DndContext, pointerWithin } from "@dnd-kit/core";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import AppBar from "@mui/material/AppBar";
 import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
@@ -29,21 +37,66 @@ import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailableP
 
 /**
  * Root application shell (requirements §5.1) and the shared shell-level `DndContext`
- * ancestor (Phase 8, §5.6/docs/CONVENTIONS.md dnd-kit note). `App` does *nothing but*
- * construct `<DndContext>` around its descendant: `useDraggable` (in `DraggablePiece`,
- * tray), `useDroppable` (in `CellDisplay`, board) and `useDndMonitor` (the shell's
- * drag-end monitor) all register with the nearest ANCESTOR context via React context,
- * so they only work when called from a component rendered INSIDE `<DndContext>` — that
- * is `AppConnected` below, never this function's own body. One shared context covers
- * board + tray, so a piece can be picked up from the tray and dropped on the board
- * (§5.1). Desktop pointer input only this phase — dnd-kit's default `PointerSensor`
- * already serves the mouse; mobile/touch sensor configuration is Phase 9.
+ * ancestor (Phase 8, §5.6/docs/CONVENTIONS.md dnd-kit note). `App` constructs
+ * `<DndContext>` around its descendant and configures the input sensors that context
+ * accepts (§5.6, §7.6): `useDraggable` (in `DraggablePiece`, tray), `useDroppable` (in
+ * `CellDisplay`, board) and `useDndMonitor` (the shell's drag-end monitor) all register
+ * with the nearest ANCESTOR context via React context, so they only work when called
+ * from a component rendered INSIDE `<DndContext>` — that is `AppConnected` below, never
+ * this function's own body. One shared context covers board + tray, so a piece can be
+ * picked up from the tray and dropped on the board (§5.1).
+ *
+ * Phase 9 (§7.6): the context accepts both input modalities simultaneously — desktop
+ * pointer/pen and mobile touch — with no separate mobile-only context or code path, and
+ * the drop handling (`AppConnected` → `useAppActions.onDragEnd` → `resolveDragDrop` →
+ * `placePiece`) gains no touch-specific branch: the sensors only decide how a gesture
+ * STARTS, and the shared drag-end path decides what a finished drag does, identically
+ * for every modality. Sensor configuration is the only touch concern this phase adds.
  */
 export const App: TelescopeComponent<AppState> = (
   props: TelescopedProps<AppState>,
 ): React.ReactElement => {
+  // §5.6/§7.6 — the sensor set this shared DndContext accepts input through. Phase 8
+  // ran on the library's default set (unconstrained PointerSensor + KeyboardSensor);
+  // Phase 9 makes that set explicit — so no input mode the shell already had
+  // regresses — and adds the mobile-touch path on top:
+  //
+  // PointerSensor — the desktop pointer/pen path, unconstrained exactly as the default
+  // was, so Phase 8's pointer behavior is unchanged. It also ends up owning every
+  // modern touch gesture: touch input raises `pointerdown` before `touchstart`, and
+  // dnd-kit's activation binding ignores a gesture another sensor already claimed —
+  // so the later `touchstart` is a no-op and the pointer path drives the whole drag.
+  // It is the tray piece's own `touch-action: none` (Phase 8's `dragPieceStyle`,
+  // `useDraggablePieceDomain.ts`) that keeps the browser from scrolling that gesture
+  // away.
+  //
+  // TouchSensor — the mobile path, configured with the delay/tolerance activation
+  // constraint dnd-kit's mobile guidance prescribes, for input that never raises
+  // pointer events: holding the piece still for `delay` ms activates the drag, and
+  // dnd-kit's non-passive `touchmove` listener then preventDefaults every further
+  // movement so the page cannot scroll mid-drag; moving more than `tolerance` px
+  // within the delay aborts the pending activation, so a page scroll that BEGAN on
+  // the piece is never hijacked into a drag. Its `setup()` hook is run by
+  // `DndContext`'s sensor setup, not by this list, and installs the window-level
+  // non-passive `touchmove` listener iOS Safari requires for those preventDefaults to
+  // take effect at all.
+  //
+  // KeyboardSensor — kept verbatim from the library default so Phase 8's keyboard
+  // drag path (focus a tray piece; Space/Enter picks it up, arrows move it, Space
+  // drops it through the same shared `placePiece` path) does not regress.
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor),
+  );
+
   return (
-    <DndContext collisionDetection={pointerWithin}>
+    <DndContext collisionDetection={pointerWithin} sensors={sensors}>
       <AppConnected {...props} />
     </DndContext>
   );
