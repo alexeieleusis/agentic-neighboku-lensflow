@@ -137,7 +137,7 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     // §7.6: every input mode lands on the single shared context — no mobile-only
     // DndContext, no forked code path:
     const bySensor = new Map(
-      (sensors as Array<Readonly<{ sensor: unknown; options: unknown }>>).map(
+      (sensors as Array<{ readonly sensor: unknown; readonly options: unknown }>).map(
         (descriptor) => [descriptor.sensor, descriptor.options] as const,
       ),
     );
