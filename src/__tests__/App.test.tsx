@@ -14,7 +14,9 @@ import { darkTheme } from "../theme";
 // spy delegating to the real provider so the subtree (`useDraggable` / `useDroppable`
 // / `useDndMonitor`) still registers exactly as in production. `vi.hoisted` puts the
 // spy in scope of the hoisted mock factory.
-const { dndContextSpy } = vi.hoisted(() => ({ dndContextSpy: vi.fn() }));
+const { dndContextSpy } = vi.hoisted(() => ({
+  dndContextSpy: vi.fn<(props: DndContextProps) => void>(),
+}));
 
 vi.mock("@dnd-kit/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@dnd-kit/core")>();
@@ -137,7 +139,7 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     // §7.6: every input mode lands on the single shared context — no mobile-only
     // DndContext, no forked code path:
     const bySensor = new Map(
-      (sensors as Array<{ readonly sensor: unknown; readonly options: unknown }>).map(
+      (sensors ?? []).map(
         (descriptor) => [descriptor.sensor, descriptor.options] as const,
       ),
     );
