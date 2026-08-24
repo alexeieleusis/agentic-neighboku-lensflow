@@ -71,12 +71,13 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     // Board: size² cells, split by the game state into filled placeholders
     // (role="img") and blank-cell drop-target rings (aria-hidden). The heading's own
     // div is wrapped by BoardDisplay's root box, which also owns the grid.
-    const boardRoot = screen
-      .getByText("Board (4×4)")
-      .closest("div")!.parentElement;
-    expect(boardRoot).not.toBeNull();
-    const filled = boardRoot!.querySelectorAll('[role="img"]').length;
-    const blank = boardRoot!.querySelectorAll('[aria-hidden="true"]').length;
+    const headingDiv = screen.getByText("Board (4×4)").closest("div");
+    if (headingDiv === null)
+      throw new Error("board heading missing its wrapping div");
+    const boardRoot = headingDiv.parentElement;
+    if (boardRoot === null) throw new Error("board root div has no parent");
+    const filled = boardRoot.querySelectorAll('[role="img"]').length;
+    const blank = boardRoot.querySelectorAll('[aria-hidden="true"]').length;
     expect(filled + blank).toBe(state.game.size * state.game.size);
     expect(blank).toBe(remainingUnits(state));
 
