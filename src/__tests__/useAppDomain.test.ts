@@ -222,7 +222,9 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     });
     expect(next).not.toBe(state);
     expect(next.game.board[badCell[0]][badCell[1]]).toBe(badPiece);
-    expect(next.game.placedCells.at(-1)!.isValid).toBe(false);
+    const move = next.game.placedCells.at(-1);
+    if (move === undefined) throw new Error("expected a recorded move after an invalid drop");
+    expect(move.isValid).toBe(false);
   });
 
   it("is a no-op when dropped onto a filled cell (fit caches skip filled cells, §3.5 step 1)", () => {
