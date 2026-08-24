@@ -60,7 +60,11 @@ const ZERO_RECT = {
   bottom: 0,
 } as const;
 
-/** A structurally-valid DragEndEvent carrying only the ids the monitor reads. */
+/**
+ * A fully-shaped DragEndEvent fixture: the monitor reads only `active.id` and
+ * `over.id`, so every other field is an inert placeholder that still has to
+ * satisfy `Active`/`Over` by construction.
+ */
 function dragEndEvent(activeId: string, overId: string | null): DragEndEvent {
   return {
     activatorEvent: new Event("pointerdown"),
