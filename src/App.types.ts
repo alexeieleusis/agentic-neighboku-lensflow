@@ -97,14 +97,16 @@ export interface TopBarView {
 export interface AppViewModel {
   /**
    * The Phase 5 board slice: `BoardDisplayState` plus a magnified child telescope
-   * (`App` → `BoardDisplay`, §7.2). Read-only in this phase — board writes flow
-   * through the move engine once placement exists (Phase 8).
+   * (`App` → `BoardDisplay`, §7.2). Read-only projection of `game.board`: placement
+   * (Phase 8 drag-drop, §5.6) commits through the move engine and rebuilds `game`
+   * wholesale on the shell telescope — writes never flow through this slice itself.
    */
   readonly board: TelescopedProps<BoardDisplayState>;
   /**
-   * The Phase 7 tray slice: `AvailablePiecesTrayState` plus a magnified child telescope
-   * (`App` → `AvailablePiecesTray`, §7.2). Read-only in this phase — tray writes flow
-   * through the move engine once placement exists (Phase 8).
+   * The Phase 7 tray slice: `AvailablePiecesTrayState` plus a magnified child
+   * telescope (`App` → `AvailablePiecesTray`, §7.2). Read-only projection of
+   * `game.availablePieces`, for the same reason as the board slice: the move engine
+   * owns the tray, and this slice mirrors it as `game` is rebuilt.
    */
   readonly tray: TelescopedProps<AvailablePiecesTrayState>;
   readonly topBar: TopBarView;

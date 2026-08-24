@@ -17,8 +17,10 @@ export interface AvailablePiecesTrayState {
 /**
  * One tray column in the view model: a distinct remaining piece value, how many copies
  * of it remain, and that column's piece image as its own magnified-telescope slice —
- * the §7.2 load-bearing parent→child flow, so `RenderAvailablePiecesTray` hands a
- * real `PieceDisplay` (Phase 6) to each column without re-deriving state.
+ * the §7.2 load-bearing parent→child flow. The slice's shape is `PieceDisplayState`
+ * (the image itself) and is handed to the column's `DraggablePiece` (Phase 8), which
+ * renders the shared `PieceDisplay` (Phase 6) as its `useDraggable` node without
+ * re-deriving any state.
  */
 export interface AvailablePiecesTrayColumn {
   readonly piece: Piece;

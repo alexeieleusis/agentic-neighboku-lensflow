@@ -1,20 +1,32 @@
+import { useDroppable } from "@dnd-kit/core";
 import type { TelescopedProps } from "../../base/TelescopeComponent";
 import { sectionSize } from "../../game/boardBuilder";
 import type {
   CellDisplayState,
   CellDisplayViewModel,
 } from "./CellDisplay.types";
+import { cellDroppableId } from "./useCellDisplayDomain";
 
 /**
- * Trivial tier (requirements §7.2.1): a simple leaf with no local UI state, no user
- * actions, and — yet — no dnd-kit hook registration keeps one flat view-model hook;
- * no Domain/State/Actions split. The Phase 8 droppable registration and the Phase 12
- * hint logic are what will make this cell stop being trivial.
+ * Split tier (requirements §7.2.1): Phase 8's droppable registration made this cell
+ * more than a trivial leaf — the pure id convention it shares with the shell's drag-end
+ * monitor lives in `useCellDisplayDomain`. There is still no local UI state and no
+ * action (the drop itself is committed centrally by the shell's `handleDragEnd`,
+ * §5.6), so the split stays Domain + this orchestrator.
  */
 export function useCellDisplayViewModel(
   props: Readonly<TelescopedProps<CellDisplayState>>,
 ): CellDisplayViewModel {
   const { size, pieceType, row, col, piece } = props.state;
+
+  // The §5.6 droppable registration: id `cell-{row}-{col}`, live only while the cell is
+  // blank. `useDroppable` registers with the nearest ANCESTOR DndContext via React
+  // context (docs/CONVENTIONS.md dnd-kit note) — this cell always has one: the
+  // shell-level `<DndContext>` that `App` constructs.
+  const droppable = useDroppable({
+    id: cellDroppableId(row, col),
+    disabled: piece !== null,
+  });
 
   return {
     gridRow: row + 1,
@@ -23,6 +35,8 @@ export function useCellDisplayViewModel(
     piece,
     pieceLabel: piece === null ? null : piece.map(String).join(" "),
     pieceType,
+    droppableNodeRef: droppable.setNodeRef,
+    isOver: piece === null && droppable.isOver,
   };
 }
 

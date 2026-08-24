@@ -10,17 +10,19 @@ import type {
   AvailablePiecesTrayViewModel,
 } from "./AvailablePiecesTray.types";
 import { useAvailablePiecesTrayViewModel } from "./useAvailablePiecesTrayViewModel";
-import { PieceDisplay } from "../PieceDisplay/PieceDisplay";
+import { DraggablePiece } from "../DraggablePiece/DraggablePiece";
 
 /**
- * §5.5 — the available-pieces tray: one column per distinct remaining piece value,
- * sorted ascending by the piece's base-10-encoded value, each column showing the
- * piece image (via the shared Phase 6 `PieceDisplay`) and its remaining count.
+ * §5.5 + §5.6 — the available-pieces tray: one column per distinct remaining piece
+ * value, sorted ascending by the piece's base-10-encoded value, each column showing
+ * the draggable piece image (the Phase 8 `DraggablePiece` wrapping the shared Phase 6
+ * `PieceDisplay`: the image is the `useDraggable` node, so a piece can be picked up
+ * from here and dropped on the board under the shared shell-level `DndContext`) and
+ * its remaining count.
  * The tray spans the width of the board above it, so a column wraps to the next
  * row only when the next column would not fit in that width. Deferred to Phase 13
  * regardless of preference values: the `*` unique-cell hint and the
- * click-to-place button list. Deferred to Phase 8: drag-and-drop; the piece
- * images here are static.
+ * click-to-place button list. Mobile/touch sensor tuning lands in Phase 9.
  */
 export const AvailablePiecesTray: TelescopeComponent<AvailablePiecesTrayState> =
   function (
@@ -52,10 +54,11 @@ function RenderAvailablePiecesTray(
 }
 
 /**
- * One §5.5 tray column: the piece image (the shared Phase 6 `PieceDisplay`, fed by
- * this column's magnified piece-image telescope) and the remaining count. Renders no
- * `*` hint and no click-to-place buttons — both are Phase 13 scope, explicitly out of
- * scope here even when the corresponding preferences are on.
+ * One §5.5 tray column: the draggable piece image (the Phase 8 `DraggablePiece`, fed
+ * by this column's magnified piece-image telescope — it renders the shared Phase 6
+ * `PieceDisplay` as its drag node) and the remaining count. Renders no `*` hint and no
+ * click-to-place buttons — both are Phase 13 scope, explicitly out of scope here even
+ * when the corresponding preferences are on.
  */
 function TrayColumn(
   props: Readonly<{ column: Readonly<AvailablePiecesTrayColumn> }>,
@@ -73,7 +76,7 @@ function TrayColumn(
         borderRadius: 0.5,
       }}
     >
-      <PieceDisplay {...column.pieceImage} />
+      <DraggablePiece {...column.pieceImage} />
       <Typography variant="caption">{column.count}</Typography>
     </Stack>
   );
