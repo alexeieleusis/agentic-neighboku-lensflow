@@ -115,4 +115,19 @@ describe("DraggablePiece (§5.6 tray drag node)", () => {
       "circle, red border, aquamarine fill",
     );
   });
+
+  it("renders the SVG at the requested non-default size", () => {
+    // Every other test in this suite renders the default size; this one pins the
+    // size prop's path so a hardcoded-size regression in DraggablePiece or
+    // PieceDisplay is caught.
+    const { container } = render(
+      <DndContext>
+        <DraggablePiece {...pieceState([0, 0, 0], 64)} />
+      </DndContext>,
+    );
+
+    const svg = container.querySelector("svg");
+    assertNode(svg, "an svg PieceDisplay");
+    expect(svg.getAttribute("width")).toBe("64");
+  });
 });
