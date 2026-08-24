@@ -64,7 +64,7 @@ describe("useDraggablePieceViewModel", () => {
     // activation listener is present, so picking the element up with the pointer starts
     // a drag (§5.6's desktop-pointer path).
     expect(result.current.listeners).toBeTruthy();
-    expect(Object.keys(result.current.listeners!)).toContain("onPointerDown");
+    expect(Object.keys(result.current.listeners ?? {})).toContain("onPointerDown");
     expect(result.current.dragStyle.touchAction).toBe("none");
     expect(result.current.dragStyle.cursor).toBe("grab");
     expect(result.current.dragStyle.transform).toBeUndefined();
