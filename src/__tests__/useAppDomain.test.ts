@@ -117,7 +117,8 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
       state.game.placedCells.length + 1,
     );
     const move = next.game.placedCells.at(-1);
-    if (move === undefined) throw new Error("expected a recorded move after a legal drop");
+    if (move === undefined)
+      throw new Error("expected a recorded move after a legal drop");
     expect(move.isValid).toBe(true);
     expect(move.cell).toEqual([row, col]);
     expect(move.pieceValue).toBe(piece);
@@ -223,7 +224,8 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     expect(next).not.toBe(state);
     expect(next.game.board[badCell[0]][badCell[1]]).toBe(badPiece);
     const move = next.game.placedCells.at(-1);
-    if (move === undefined) throw new Error("expected a recorded move after an invalid drop");
+    if (move === undefined)
+      throw new Error("expected a recorded move after an invalid drop");
     expect(move.isValid).toBe(false);
   });
 
