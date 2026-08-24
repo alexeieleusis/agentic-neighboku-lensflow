@@ -211,6 +211,32 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
       }),
     ).toBe(state);
   });
+
+  it("commits an invalid move when preventInvalidMoves is off (§3.5: applied, recorded isValid: false)", () => {
+    const state = buildState(buildGame(false));
+    expect(state.game.preferences.preventInvalidMoves).toBe(false);
+    const [badPiece, badCell] = pickIllegalPlacement(state.game);
+    const next = resolveDragDrop(state, {
+      activeId: trayPieceDraggableId(badPiece),
+      overId: cellDroppableId(badCell[0], badCell[1]),
+    });
+    expect(next).not.toBe(state);
+    expect(next.game.board[badCell[0]][badCell[1]]).toBe(badPiece);
+    expect(next.game.placedCells.at(-1)!.isValid).toBe(false);
+  });
+
+  it("is a no-op when dropped onto a filled cell (fit caches skip filled cells, §3.5 step 1)", () => {
+    const state = buildState(buildGame());
+    const [piece] = pickLegalPlacement(state.game);
+    const [row, col] = pickFilledCell(state.game);
+
+    const next = resolveDragDrop(state, {
+      activeId: trayPieceDraggableId(piece),
+      overId: cellDroppableId(row, col),
+    });
+
+    expect(next).toBe(state);
+  });
 });
 
 describe("resolveTrayPiece (§8.7 reference resolution)", () => {
@@ -248,6 +274,16 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
     });
   });
 });
+
+/** A currently-filled board cell (the fit caches skip it, §3.5 step 1). */
+function pickFilledCell(game: Game): Cell {
+  for (let row = 0; row < game.size; row++) {
+    for (let col = 0; col < game.size; col++) {
+      if (game.board[row][col] !== null) return [row, col];
+    }
+  }
+  throw new Error("fixture: unfolded game has no filled cell (impossible)");
+}
 
 /** A piece value the fixture's tray demonstrably does not hold. */
 function pickStrayPiece(game: Game): Piece {
