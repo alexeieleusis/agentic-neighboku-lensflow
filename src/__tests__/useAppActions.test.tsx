@@ -101,23 +101,42 @@ function dndWrapper({ children }: { children: React.ReactNode }) {
   return <DndContext>{children}</DndContext>;
 }
 
+/**
+ * Shared drag-end harness: fixture state with a legal placement, the hook rendered
+ * inside a DndContext, and every stream emission captured for later assertions.
+ */
+function dragEndHarness(preventInvalidMoves = true) {
+  const state = buildState(preventInvalidMoves);
+  const [piece, placement] = pickLegalPlacement(state.game);
+  const telescope = Telescope.of(state);
+  const emissions: AppState[] = [];
+
+  const { result } = renderHook(
+    (s: AppState) => useAppActions({ state: s, telescope }),
+    { wrapper: dndWrapper, initialProps: state },
+  );
+  const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+  return {
+    state,
+    piece,
+    placement,
+    actions: result.current,
+    emissions,
+    unsubscribe: () => subscription.unsubscribe(),
+  };
+}
+
 describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
   it("commits a legal drop through the shell telescope: board filled, tray decremented", () => {
-    const state = buildState();
-    const [piece, [row, col]] = pickLegalPlacement(state.game);
-    const telescope = Telescope.of(state);
-    const emissions: AppState[] = [];
+    const { state, piece, placement, actions, emissions, unsubscribe } =
+      dragEndHarness();
+    const [row, col] = placement;
 
-    const { result } = renderHook(
-      (s: AppState) => useAppActions({ state: s, telescope }),
-      { wrapper: dndWrapper, initialProps: state },
-    );
-    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
-
-    result.current.onDragEnd(
+    actions.onDragEnd(
       dragEndEvent(trayPieceDraggableId(piece), cellDroppableId(row, col)),
     );
-    subscription.unsubscribe();
+    unsubscribe();
 
     // The replayed initial state + exactly one committed update.
     expect(emissions).toHaveLength(2);
@@ -132,19 +151,10 @@ describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
   });
 
   it("is a no-op for a drop outside any droppable (no re-emission)", () => {
-    const state = buildState();
-    const [piece] = pickLegalPlacement(state.game);
-    const telescope = Telescope.of(state);
-    const emissions: AppState[] = [];
+    const { state, piece, actions, emissions, unsubscribe } = dragEndHarness();
 
-    const { result } = renderHook(
-      (s: AppState) => useAppActions({ state: s, telescope }),
-      { wrapper: dndWrapper, initialProps: state },
-    );
-    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
-
-    result.current.onDragEnd(dragEndEvent(trayPieceDraggableId(piece), null));
-    subscription.unsubscribe();
+    actions.onDragEnd(dragEndEvent(trayPieceDraggableId(piece), null));
+    unsubscribe();
 
     // Only the replayed initial state — the distinctUntilChanged'd stream saw no
     // change because resolveDragDrop returned the input state itself.
@@ -153,24 +163,17 @@ describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
   });
 
   it("absorbs an invalid drop (preventInvalidMoves): no crash, state unchanged", () => {
-    const state = buildState();
-    const [piece, [row, col]] = pickLegalPlacement(state.game);
-    const telescope = Telescope.of(state);
-    const emissions: AppState[] = [];
-
-    const { result } = renderHook(
-      (s: AppState) => useAppActions({ state: s, telescope }),
-      { wrapper: dndWrapper, initialProps: state },
-    );
-    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+    const { state, piece, placement, actions, emissions, unsubscribe } =
+      dragEndHarness();
+    const [row, col] = placement;
 
     // Out-of-bounds target for this 4×4 board: placePiece throws, the monitor absorbs.
     expect(() =>
-      result.current.onDragEnd(
+      actions.onDragEnd(
         dragEndEvent(trayPieceDraggableId(piece), cellDroppableId(9, 9)),
       ),
     ).not.toThrow();
-    subscription.unsubscribe();
+    unsubscribe();
 
     expect(emissions).toHaveLength(1);
     expect(emissions[0]).toBe(state);
