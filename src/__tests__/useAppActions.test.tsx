@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { DndContext } from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
+import type {
+  Active,
+  ClientRect,
+  DragEndEvent,
+  Over,
+  UniqueIdentifier,
+} from "@dnd-kit/core";
 import { Telescope } from "telescopejs";
 import type { AppState } from "../App.types";
 import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
@@ -58,32 +64,35 @@ const ZERO_RECT = {
   left: 0,
   right: 0,
   bottom: 0,
-} as const;
+} as const satisfies ClientRect;
 
 /**
  * A fully-shaped DragEndEvent fixture: the monitor reads only `active.id` and
  * `over.id`, so every other field is an inert placeholder that still has to
  * satisfy `Active`/`Over` by construction.
  */
-function dragEndEvent(activeId: string, overId: string | null): DragEndEvent {
+function fixtureActive(id: UniqueIdentifier): Active {
+  return {
+    id,
+    data: { current: {} },
+    rect: { current: { initial: null, translated: null } },
+  };
+}
+
+function fixtureOver(id: UniqueIdentifier): Over {
+  return { id, rect: ZERO_RECT, disabled: false, data: { current: {} } };
+}
+
+function dragEndEvent(
+  activeId: UniqueIdentifier,
+  overId: UniqueIdentifier | null,
+): DragEndEvent {
   return {
     activatorEvent: new Event("pointerdown"),
-    active: {
-      id: activeId,
-      data: { current: undefined },
-      rect: { current: { initial: null, translated: null } },
-    },
+    active: fixtureActive(activeId),
     collisions: null,
     delta: { x: 0, y: 0 },
-    over:
-      overId === null
-        ? null
-        : {
-            id: overId,
-            rect: ZERO_RECT,
-            disabled: false,
-            data: { current: undefined },
-          },
+    over: overId === null ? null : fixtureOver(overId),
   };
 }
 
