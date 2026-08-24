@@ -83,16 +83,16 @@ describe("DraggablePiece (§5.6 tray drag node)", () => {
     // draggable (the node ref + listeners ride the same element, wired in the
     // view-model).
     const dragNode = container.querySelector<HTMLElement>('[role="button"]');
-    expect(dragNode).not.toBeNull();
-    expect(dragNode!.getAttribute("tabindex")).toBe("0");
-    expect(dragNode!.getAttribute("aria-roledescription")).toBe("draggable");
+    if (!dragNode) throw new Error("Expected [role=button] element in the drag node");
+    expect(dragNode.getAttribute("tabindex")).toBe("0");
+    expect(dragNode.getAttribute("aria-roledescription")).toBe("draggable");
 
     // The piece image renders via the Phase 6 PieceDisplay at the requested size,
     // inside the drag node.
-    const svg = dragNode!.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(svg!.getAttribute("width")).toBe("48");
-    expect(svg!.querySelector("title")?.textContent).toBe(
+    const svg = dragNode.querySelector("svg");
+    if (!svg) throw new Error("Expected <svg> inside the drag node");
+    expect(svg.getAttribute("width")).toBe("48");
+    expect(svg.querySelector("title")?.textContent).toBe(
       "circle, red border, aquamarine fill",
     );
   });
