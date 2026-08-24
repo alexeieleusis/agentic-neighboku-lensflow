@@ -30,6 +30,23 @@ function dndWrapper({ children }: { children: React.ReactNode }) {
   return <DndContext>{children}</DndContext>;
 }
 
+// Narrow a queried node from `T | null` to `T`, failing the test with a readable message
+// at the invariant site — in place of the unchecked non-null assertion (`!`).
+function assertNode<T>(value: T | null, what: string): asserts value is T {
+  if (value === null)
+    throw new Error(`Expected ${what} in the rendered output`);
+}
+
+// Narrow an optional value (e.g. dnd-kit's `listeners`) from `T | undefined` to `T`
+// with the same readable failure mode.
+function assertDefined<T>(
+  value: T | undefined,
+  what: string,
+): asserts value is T {
+  if (value === undefined)
+    throw new Error(`Expected ${what} to be defined by the hook`);
+}
+
 describe("useDraggablePieceViewModel", () => {
   it("hands the wrapped PieceDisplay a live magnified piece-image slice", async () => {
     const props = pieceState([0, 2, 0]);
@@ -64,7 +81,9 @@ describe("useDraggablePieceViewModel", () => {
     // activation listener is present, so picking the element up with the pointer starts
     // a drag (§5.6's desktop-pointer path).
     expect(result.current.listeners).toBeTruthy();
-    expect(Object.keys(result.current.listeners ?? {})).toContain("onPointerDown");
+    const listeners = result.current.listeners;
+    assertDefined(listeners, "a useDraggable activation listener map");
+    expect(Object.keys(listeners)).toContain("onPointerDown");
     expect(result.current.dragStyle.touchAction).toBe("none");
     expect(result.current.dragStyle.cursor).toBe("grab");
     expect(result.current.dragStyle.transform).toBeUndefined();
@@ -83,14 +102,14 @@ describe("DraggablePiece (§5.6 tray drag node)", () => {
     // draggable (the node ref + listeners ride the same element, wired in the
     // view-model).
     const dragNode = container.querySelector<HTMLElement>('[role="button"]');
-    if (!dragNode) throw new Error("Expected [role=button] element in the drag node");
+    assertNode(dragNode, "a [role=button] drag node");
     expect(dragNode.getAttribute("tabindex")).toBe("0");
     expect(dragNode.getAttribute("aria-roledescription")).toBe("draggable");
 
     // The piece image renders via the Phase 6 PieceDisplay at the requested size,
     // inside the drag node.
     const svg = dragNode.querySelector("svg");
-    if (!svg) throw new Error("Expected <svg> inside the drag node");
+    assertNode(svg, "an svg PieceDisplay");
     expect(svg.getAttribute("width")).toBe("48");
     expect(svg.querySelector("title")?.textContent).toBe(
       "circle, red border, aquamarine fill",
