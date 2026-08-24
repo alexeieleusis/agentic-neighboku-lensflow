@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "watch": "tsc -b --watch",
     "lint": "eslint .",
+    "lint:report": "eslint . --format json --output-file reports/eslint.json",
     "lint:lensflow": "eslint --config eslint.lensflow.config.js .",
     "lint:lensflow:report": "eslint --config eslint.lensflow.config.js . --format json --output-file reports/eslint-lensflow.json",
     "update:lensflow": "node scripts/update-lensflow.mjs",
