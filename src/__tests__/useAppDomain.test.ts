@@ -313,7 +313,11 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
     const state = buildState(game);
     const prefs = {
       ...state.preferences,
-      hints: { ...state.preferences.hints, fitPieceCount: true, showFitPiecesOnHover: true },
+      hints: {
+        ...state.preferences.hints,
+        fitPieceCount: true,
+        showFitPiecesOnHover: true,
+      },
     };
     const slice = buildBoardDisplayState(game, prefs);
     expect(slice.pieceType).toBe("Shapes");
@@ -322,11 +326,21 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
     expect(slice.showFitPiecesOnHover).toBe(true);
   });
 
-  it("buildAvailablePiecesTrayState mirrors the move engine's remaining tray", () => {
+  it("buildAvailablePiecesTrayState carries the whole game plus the tray-scoped hint flags", () => {
+    // Phase 13: the tray renders `game`'s tray/fit-cache fields and commits its
+    // click-to-place through `placePiece` (which needs the whole game), so the slice
+    // carries the entire `Game` — not a picked few fields — plus the two §4.2 flags
+    // the columns gate their `*` / button list on.
     const game = buildGame();
-    expect(buildAvailablePiecesTrayState(game)).toEqual({
-      size: game.size,
-      availablePieces: game.availablePieces,
+    expect(
+      buildAvailablePiecesTrayState(game, {
+        availablePieceUniqueCell: true,
+        pieceCells: false,
+      }),
+    ).toEqual({
+      game,
+      availablePieceUniqueCell: true,
+      pieceCells: false,
     });
   });
 });

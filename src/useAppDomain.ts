@@ -1,4 +1,4 @@
-import type { AppPreferences, AppState } from "./App.types.ts";
+import type { AppPreferences, AppState, HintPreferences } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type {
   BoardDisplayState,
@@ -50,15 +50,21 @@ export function buildBoardDisplayState(
 }
 
 /**
- * The remaining tray slice the `AvailablePiecesTray` renders (§5.5): the board size
- * plus the move engine's remaining pieces, one entry per distinct piece value.
+ * The tray slice the `AvailablePiecesTray` renders AND commits through (§5.5,
+ * Phase 13): the move engine's `Game` in its entirety — the render path reads its
+ * `size`/`availablePieces`/`pieceToFitCells`, and the tray's click-to-place action
+ * hands a `(piece, cell)` to Phase 3's `placePiece`, which needs the whole game to
+ * produce the next one — plus the two tray-scoped hint flags the columns gate their
+ * `*` and button list on (§4.2 `hintAvailablePieceUniqueCell` / `hintPieceCells`).
  */
 export function buildAvailablePiecesTrayState(
   game: Game,
+  hints: Pick<HintPreferences, "availablePieceUniqueCell" | "pieceCells">,
 ): AvailablePiecesTrayState {
   return {
-    size: game.size,
-    availablePieces: game.availablePieces,
+    game,
+    availablePieceUniqueCell: hints.availablePieceUniqueCell,
+    pieceCells: hints.pieceCells,
   };
 }
 

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useStoryTelescope } from "../../base/useStoryTelescope";
-import { createPiece, type Piece } from "../../game/entities";
-import type { Tray } from "../../game/gameBuilder";
+import type { Piece } from "../../game/entities";
+import { buildBoard } from "../../game/boardBuilder";
+import { unfoldGame, type Game } from "../../game/gameBuilder";
 import { AvailablePiecesTray } from "./AvailablePiecesTray";
 import type { AvailablePiecesTrayState } from "./AvailablePiecesTray.types";
 
@@ -20,15 +21,15 @@ function AvailablePiecesTrayHost(
   return <AvailablePiecesTray state={state} telescope={telescope} />;
 }
 
-/** Build a domain `Tray` from `[digits, count]` pairs (base-3, 3-d interned pieces). */
-function trayOf(
-  entries: ReadonlyArray<readonly [readonly number[], number]>,
-): Tray {
-  const tray = new Map<Piece, number>();
-  for (const [digits, count] of entries) {
-    tray.set(createPiece(digits, 3, 3), count);
-  }
-  return tray;
+/**
+ * A real, freshly-unfolded game (never a hand-authored fixture): a deterministic
+ * Phase 2 board (seed fixed) through Phase 3's unfolding — base-3, 3-dimension for
+ * every catalog entry.
+ */
+function buildGame(size: number, seed: number): Game {
+  return unfoldGame(buildBoard(size, 3, 3, seed), {
+    preventInvalidMoves: true,
+  });
 }
 
 const meta = {
@@ -42,46 +43,73 @@ const meta = {
 export default meta;
 
 /**
- * Mid-game tray on a 6×6 board. Map insertion order is deliberately unsorted to
- * confirm the columns render ascending by base-10-encoded value (0,0,0 → 0, then
- * 0,2,0 → 20, then 1,0,0 → 100, then 1,1,1 → 111, then 2,1,0 → 210). The tray spans
- * the width of the board above it and wraps only when the next column would not fit.
+ * Mid-game 6×6 tray, both hints off — the Phase 7 baseline: one column per
+ * distinct remaining piece value, sorted ascending by base-10-encoded value,
+ * each column showing the draggable piece image and its remaining count; no `*`,
+ * no click-to-place buttons.
  */
 export const Default: StoryObj<typeof meta> = {
   args: {
-    size: 6,
-    availablePieces: trayOf([
-      [[1, 1, 1], 2],
-      [[0, 2, 0], 1],
-      [[0, 0, 0], 3],
-      [[1, 0, 0], 1],
-      [[2, 1, 0], 4],
-    ]),
+    game: buildGame(6, 6),
+    availablePieceUniqueCell: false,
+    pieceCells: false,
   },
 };
 
 /**
- * The same tray on a 12×12 board: since the tray spans the board's width, a wider
- * board gives the same columns more room before they wrap. Compare side by side with
- * Default.
+ * §5.5 second bullet: on this 4×4 the [2,0,1] value is forced — its one remaining
+ * copy has exactly one legal fit-cell — so with `availablePieceUniqueCell` on its
+ * column shows a `1*` (the "this piece's placement is now forced" hint). Toggle the
+ * flag off to confirm the `*` disappears with no other visible change.
  */
-export const LargeBoard: StoryObj<typeof meta> = {
+export const UniqueCellHint: StoryObj<typeof meta> = {
   args: {
-    size: 12,
-    availablePieces: trayOf([
-      [[1, 1, 1], 2],
-      [[0, 2, 0], 1],
-      [[0, 0, 0], 3],
-      [[1, 0, 0], 1],
-      [[2, 1, 0], 4],
-    ]),
+    game: buildGame(4, 4),
+    availablePieceUniqueCell: true,
+    pieceCells: false,
   },
 };
 
-/** An emptied tray: no columns at all (every piece value fully placed). */
+/**
+ * §5.5 third bullet: with `pieceCells` on, every column lists one button per legal
+ * fit-cell, labeled with the 1-indexed `row,column` of that cell (cell (0,0) is
+ * labeled 1,1). This is the keyboard/click-friendly alternative to drag-and-drop:
+ * click any button to place that column's piece at exactly that cell, through the
+ * same `placePiece` path the drag-and-drop uses.
+ */
+export const ClickToPlace: StoryObj<typeof meta> = {
+  args: {
+    game: buildGame(6, 6),
+    availablePieceUniqueCell: false,
+    pieceCells: true,
+  },
+};
+
+/** Both §5.5 hint bullets at once: the 4×4's forced column shows `1*` and its one click-to-place button. */
+export const BothHintsOn: StoryObj<typeof meta> = {
+  args: {
+    game: buildGame(4, 4),
+    availablePieceUniqueCell: true,
+    pieceCells: true,
+  },
+};
+
+/**
+ * A fully-resolved stand-in: the tray emptied and the fit caches dropped (the board
+ * itself plays no part in a tray-only story). Demonstrates the "heading, no
+ * columns" edge — even with both hints on.
+ */
+const EMPTY_TRAY_GAME: Game = {
+  ...buildGame(6, 6),
+  availablePieces: new Map<Piece, number>(),
+  pieceToFitCells: new Map<Piece, number[]>(),
+  cellToFitPieces: new Map<number, Piece[]>(),
+};
+
 export const EmptyTray: StoryObj<typeof meta> = {
   args: {
-    size: 6,
-    availablePieces: trayOf([]),
+    game: EMPTY_TRAY_GAME,
+    availablePieceUniqueCell: true,
+    pieceCells: true,
   },
 };
