@@ -230,6 +230,11 @@ describe("isForcedPlacement (§5.5 second bullet)", () => {
     expect(isForcedPlacement(hintOff, pieceB)).toBe(false);
     expect(isForcedPlacement(hintOff, pieceC)).toBe(false);
   });
+
+  it("is false for a fully-placed piece (zero remaining, absent from both tray and cache)", () => {
+    const pieceD = createPiece([2, 2, 2], 3, 3);
+    expect(isForcedPlacement(hintOn, pieceD)).toBe(false);
+  });
 });
 
 describe("placementCellLabel (§5.5 third bullet)", () => {

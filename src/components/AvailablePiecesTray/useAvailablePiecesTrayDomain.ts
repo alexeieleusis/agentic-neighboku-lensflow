@@ -112,8 +112,10 @@ export function isForcedPlacement(
   piece: Piece,
 ): boolean {
   if (!state.availablePieceUniqueCell) return false;
+  const count = trayRemainingCount(state.game.availablePieces, piece);
+  if (count === 0) return false;
   const fits = state.game.pieceToFitCells.get(piece)?.length ?? 0;
-  return fits === trayRemainingCount(state.game.availablePieces, piece);
+  return fits === count;
 }
 
 /**
