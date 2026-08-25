@@ -14,6 +14,7 @@ import {
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  closeInvalidMoveSnackbar,
   resolveDragDrop,
   resolveTrayPiece,
 } from "../useAppDomain";
@@ -127,6 +128,8 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     for (const remaining of next.game.availablePieces.keys()) {
       expect(next.game.pieceToFitCells.get(remaining)).toBeDefined();
     }
+    // A legal placement never opens the invalid-move feedback (§5.12).
+    expect(next.invalidMoveSnackbarOpen).toBe(false);
   });
 
   it("does not mutate the input state (new objects only, §7.3)", () => {
@@ -189,31 +192,37 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     ).toBe(state);
   });
 
-  it("absorbs the move engine's invalid-move throw: state unchanged, no crash", () => {
+  it("absorbs the move engine's invalid-move throw: opens the feedback, game untouched, no crash", () => {
     const state = buildState(buildGame());
 
     // Out-of-bounds cell: parses as a cell id, placePiece rejects it at its domain
     // boundary (§3.5 precondition) before touching any state.
     const [piece] = pickLegalPlacement(state.game);
-    expect(
-      resolveDragDrop(state, {
-        activeId: trayPieceDraggableId(piece),
-        overId: cellDroppableId(state.game.size, 0),
-      }),
-    ).toBe(state);
+    const oob = resolveDragDrop(state, {
+      activeId: trayPieceDraggableId(piece),
+      overId: cellDroppableId(state.game.size, 0),
+    });
+    expect(oob).not.toBe(state);
+    expect(oob.invalidMoveSnackbarOpen).toBe(true);
+    // §5.12: the rejection changes nothing but the feedback — the engine state is the
+    // very same object placePiece refused to mutate.
+    expect(oob.game).toBe(state.game);
+    expect(state.game.placedCells).toHaveLength(0);
 
     // In-range but not a legal cell for that piece, with preventInvalidMoves on:
-    // placePiece throws (§3.5 step 2, before any mutation) and the drop is a no-op.
+    // placePiece throws (§3.5 step 2, before any mutation) and the same feedback opens.
     const [badPiece, badCell] = pickIllegalPlacement(state.game);
-    expect(
-      resolveDragDrop(state, {
-        activeId: trayPieceDraggableId(badPiece),
-        overId: cellDroppableId(badCell[0], badCell[1]),
-      }),
-    ).toBe(state);
+    const rejected = resolveDragDrop(state, {
+      activeId: trayPieceDraggableId(badPiece),
+      overId: cellDroppableId(badCell[0], badCell[1]),
+    });
+    expect(rejected.invalidMoveSnackbarOpen).toBe(true);
+    expect(rejected.game).toBe(state.game);
+    expect(state.game.board[badCell[0]][badCell[1]]).toBeNull();
+    expect(state.game.placedCells).toHaveLength(0);
   });
 
-  it("commits an invalid move when preventInvalidMoves is off (§3.5: applied, recorded isValid: false)", () => {
+  it("commits an invalid move when preventInvalidMoves is off (§3.5: applied, recorded isValid: false) and never opens the feedback", () => {
     const state = buildState(buildGame(false));
     expect(state.game.preferences.preventInvalidMoves).toBe(false);
     const [badPiece, badCell] = pickIllegalPlacement(state.game);
@@ -227,19 +236,44 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     if (move === undefined)
       throw new Error("expected a recorded move after an invalid drop");
     expect(move.isValid).toBe(false);
+    // No throw, no feedback: §5.12 fires only on a rejected attempt.
+    expect(next.invalidMoveSnackbarOpen).toBe(false);
   });
 
-  it("is a no-op when dropped onto a filled cell (fit caches skip filled cells, §3.5 step 1)", () => {
+  it("treats a drop onto a filled cell as a rejected placement: opens the feedback, game untouched (§3.5 step 1)", () => {
     const state = buildState(buildGame());
     const [piece] = pickLegalPlacement(state.game);
     const [row, col] = pickFilledCell(state.game);
 
+    // Filled cells never appear in the fit caches, so the placement reads as
+    // invalid, placePiece throws before any mutation, and the shell opens the
+    // invalid-move feedback exactly as for any other rejected attempt (§5.12).
     const next = resolveDragDrop(state, {
       activeId: trayPieceDraggableId(piece),
       overId: cellDroppableId(row, col),
     });
 
-    expect(next).toBe(state);
+    expect(next).not.toBe(state);
+    expect(next.invalidMoveSnackbarOpen).toBe(true);
+    expect(next.game).toBe(state.game);
+    expect(state.game.placedCells).toHaveLength(0);
+  });
+});
+
+describe("closeInvalidMoveSnackbar (§5.12 dismissal)", () => {
+  it("closes open feedback: new state object, game reference untouched", () => {
+    const state = buildState(buildGame());
+    const open = { ...state, invalidMoveSnackbarOpen: true };
+
+    const next = closeInvalidMoveSnackbar(open);
+    expect(next).not.toBe(open);
+    expect(next.invalidMoveSnackbarOpen).toBe(false);
+    expect(next.game).toBe(open.game);
+  });
+
+  it("is a no-op when the feedback is already closed (input reference, no re-emission)", () => {
+    const state = buildState(buildGame());
+    expect(closeInvalidMoveSnackbar(state)).toBe(state);
   });
 });
 

@@ -3,10 +3,20 @@ import { useDndMonitor } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import type { AppState } from "./App.types.ts";
-import { resolveDragDrop } from "./useAppDomain.ts";
+import { closeInvalidMoveSnackbar, resolveDragDrop } from "./useAppDomain.ts";
 
 export interface AppActions {
   readonly onDragEnd: (event: DragEndEvent) => void;
+  /**
+   * §5.12 (Phase 11): the invalid-move Snackbar's dismissal. Zero-argument on
+   * purpose: MUI invokes a close handler as `(event, reason)` on the `Snackbar`
+   * (`onClose`, fired on the 6-second auto-hide / click-away / Escape) and as
+   * `(event)` on the `Alert` (`onClose`, fired on its close button — the two
+   * callbacks are distinct and MUI does not bridge them), so `RenderApp` hands
+   * this one closure to both; the committed next state does not depend on which
+   * source fired, only that dismissal happened.
+   */
+  readonly onInvalidMoveSnackbarClose: () => void;
 }
 
 /**
@@ -20,6 +30,12 @@ export interface AppActions {
  * this hook must run in a true descendant — `AppConnected` in `App.tsx` — never in the
  * function that constructs the `<DndContext>` element (docs/CONVENTIONS.md dnd-kit
  * note; this is the same registration class as `useDraggable`/`useDroppable`).
+ *
+ * Phase 11 adds the shell's second user interaction: dismissing the invalid-move
+ * feedback (`onInvalidMoveSnackbarClose`, §5.12). It curries the pure
+ * `closeInvalidMoveSnackbar` with the current state and commits through the same
+ * telescope as every other shell write — the Snackbar's open/closed state is
+ * shell-owned `AppState`, so no local UI state stands in for it.
  */
 export function useAppActions(
   props: Readonly<TelescopedProps<AppState>>,
@@ -40,7 +56,13 @@ export function useAppActions(
     [state, telescope],
   );
 
+  const onInvalidMoveSnackbarClose = useCallback(() => {
+    // Already-closed is a no-op (input reference back), so a doubled dismissal
+    // re-emits nothing.
+    telescope.update(closeInvalidMoveSnackbar(state));
+  }, [state, telescope]);
+
   useDndMonitor({ onDragEnd });
 
-  return { onDragEnd };
+  return { onDragEnd, onInvalidMoveSnackbarClose };
 }

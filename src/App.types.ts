@@ -71,7 +71,11 @@ export interface AppState {
   /** A real, freshly-unfolded Phase 3 `Game` produced by `buildBoard` + `unfoldGame`. */
   readonly game: Game;
   readonly preferences: AppPreferences;
-  /** §5.13/§5.12 invalid-move overlay: closed by default; Phase 11 opens it. */
+  /**
+   * §5.12 invalid-move feedback (Phase 11): closed by default; the drag-end path opens
+   * it when a placement is rejected (`placePiece` throw, §3.5), and dismissal (6-second
+   * auto-hide or manual close) writes it back closed through the action tier.
+   */
   readonly invalidMoveSnackbarOpen: boolean;
   /** §3.6/§5.13 game-finished overlay: closed by default; Phase 15 drives it. */
   readonly gameFinishedDialogOpen: boolean;
@@ -110,6 +114,7 @@ export interface AppViewModel {
    */
   readonly tray: TelescopedProps<AvailablePiecesTrayState>;
   readonly topBar: TopBarView;
+  /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;
   readonly dialogOpen: boolean;
 }

@@ -104,6 +104,9 @@ function dndWrapper({ children }: { children: React.ReactNode }) {
 /**
  * Shared drag-end harness: fixture state with a legal placement, the hook rendered
  * inside a DndContext, and every stream emission captured for later assertions.
+ * `rerender` mirrors `main.tsx`'s root: after a commit, the shell tree re-renders on
+ * the emission and the hook re-runs with the new state (fresh action closures) —
+ * call it between commits that build on a previous one.
  */
 function dragEndHarness(preventInvalidMoves = true) {
   const state = buildState(preventInvalidMoves);
@@ -111,7 +114,7 @@ function dragEndHarness(preventInvalidMoves = true) {
   const telescope = Telescope.of(state);
   const emissions: AppState[] = [];
 
-  const { result } = renderHook(
+  const { result, rerender } = renderHook(
     (s: AppState) => useAppActions({ state: s, telescope }),
     { wrapper: dndWrapper, initialProps: state },
   );
@@ -121,8 +124,11 @@ function dragEndHarness(preventInvalidMoves = true) {
     state,
     piece,
     placement,
-    actions: result.current,
+    get actions() {
+      return result.current;
+    },
     emissions,
+    rerender,
     unsubscribe: () => subscription.unsubscribe(),
   };
 }
@@ -148,6 +154,8 @@ describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
     );
     expect(next.game.placedCells).toHaveLength(1);
     expect(next.game.placedCells[0].isValid).toBe(true);
+    // A legal placement never opens the invalid-move feedback (§5.12).
+    expect(next.invalidMoveSnackbarOpen).toBe(false);
   });
 
   it("is a no-op for a drop outside any droppable (no re-emission)", () => {
@@ -162,12 +170,12 @@ describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
     expect(emissions[0]).toBe(state);
   });
 
-  it("absorbs an invalid drop (preventInvalidMoves): no crash, state unchanged", () => {
-    const { state, piece, placement, actions, emissions, unsubscribe } =
-      dragEndHarness();
-    const [row, col] = placement;
+  it("absorbs the move engine's throw on an illegal drop: opens the feedback, game untouched, no crash", () => {
+    const { state, piece, actions, emissions, unsubscribe } = dragEndHarness();
 
-    // Out-of-bounds target for this 4×4 board: placePiece throws, the monitor absorbs.
+    // Out-of-bounds target for this 4×4 board: placePiece throws at its domain
+    // boundary (§3.5 precondition), the monitor absorbs, and the shell opens the
+    // invalid-move feedback (§5.12) without committing any move.
     expect(() =>
       actions.onDragEnd(
         dragEndEvent(trayPieceDraggableId(piece), cellDroppableId(9, 9)),
@@ -175,8 +183,43 @@ describe("useAppActions (§5.6 handleDragEnd → placePiece)", () => {
     ).not.toThrow();
     unsubscribe();
 
-    expect(emissions).toHaveLength(1);
-    expect(emissions[0]).toBe(state);
-    expect(state.game.board[row][col]).toBeNull();
+    // Replayed initial state + the one rejection-emitting update.
+    expect(emissions).toHaveLength(2);
+    const next = emissions[1];
+    expect(next).not.toBe(state);
+    expect(next.invalidMoveSnackbarOpen).toBe(true);
+    expect(next.game).toBe(state.game);
+  });
+
+  it("dismisses the invalid-move feedback through the shell telescope (§5.12)", () => {
+    const harness = dragEndHarness();
+    const { state, emissions, unsubscribe } = harness;
+
+    // Open it the only way the shell opens it: a rejected placement.
+    harness.actions.onDragEnd(
+      dragEndEvent(trayPieceDraggableId(harness.piece), cellDroppableId(9, 9)),
+    );
+    // The `main.tsx` root re-renders on the emission: the hook re-runs against the
+    // open state, so the dismissal closure below sees it (as in production, where an
+    // action always commits against the tree's current state).
+    const opened = harness.emissions.at(-1);
+    if (opened === undefined)
+      throw new Error(
+        "fixture: the rejection emission is missing (impossible)",
+      );
+    harness.rerender(opened);
+    // Dismiss it the way MUI's Snackbar/Alert fire the shell's action (auto-hide,
+    // click-away, Escape, or the close button — all one code path).
+    harness.actions.onInvalidMoveSnackbarClose();
+    unsubscribe();
+
+    expect(emissions).toHaveLength(3);
+    expect(emissions[2].invalidMoveSnackbarOpen).toBe(false);
+    expect(emissions[2].game).toBe(state.game);
+
+    // A doubled dismissal is a no-op (same reference back): the distinctUntilChanged
+    // stream re-emits nothing, so the count stays put.
+    harness.actions.onInvalidMoveSnackbarClose();
+    expect(emissions).toHaveLength(3);
   });
 });
