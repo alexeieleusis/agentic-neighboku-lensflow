@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Lens } from "telescopejs";
 import { useDroppable } from "@dnd-kit/core";
 import type { Piece } from "../../game/entities";
@@ -64,6 +64,21 @@ export function useCellDisplayState(
   //             tooltip by tapping the cell and dismisses it by tapping it again.
   const [hovered, setHovered] = useState(false);
   const [tapped, setTapped] = useState(false);
+
+  // The reveal state must not outlive the cell's occupancy. This component instance
+  // survives the cell's piece transitions (`RowDisplay` keys its cells by `col`), and
+  // the cell root's `onClick` commits a pin on a FILLED cell too — invisible there,
+  // because `fitPiecesTooltipIsOn` needs `piece === null`. When such a cell next
+  // blanks (an `undoPlay`, or a later phase's click-to-remove), the stale pin would
+  // otherwise open the tooltip with no pointer over the cell and no tap that belongs
+  // to its blank state. Reset both flags on any `piece` reference change — the board
+  // keeps its pieces by interned pool reference, so this fires only on a real
+  // occupancy change, and a pointer already resting on the cell as it blanks simply
+  // re-enters.
+  useEffect(() => {
+    setHovered(false);
+    setTapped(false);
+  }, [piece]);
 
   const fitPieces = useMemo(
     () => fitPiecesForCell(cellToFitPieces, size, row, col),
