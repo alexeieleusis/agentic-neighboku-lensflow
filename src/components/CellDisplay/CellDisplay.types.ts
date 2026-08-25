@@ -53,7 +53,14 @@ export interface CellDisplayState {
  * row and one column per board row/column, §5.2); `backgroundColor` is the section-
  * keyed fill (`gridRow`/`gridColumn`/`backgroundColor` named in the requirements as
  * `CellDisplay`'s view-model fields).
+ *
+ * `isOver`, `fitCountVisible`, and `fitPiecesTooltipOpen` are independent derived
+ * gates, not parallel states of one widget — a blank cell with both hint prefs on
+ * shows the fit-count badge and the open tooltip at once, and a piece hovering the
+ * cell is orthogonal to both — so they stay parallel booleans rather than a
+ * discriminated union (UC13 “When Not to Use It”: independent simple flags).
  */
+// eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface CellDisplayViewModel {
   readonly gridRow: number;
   readonly gridColumn: number;

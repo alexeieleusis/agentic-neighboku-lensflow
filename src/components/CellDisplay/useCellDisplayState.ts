@@ -23,7 +23,16 @@ import {
  * The shape is INTERNAL: it carries the setters the action tier commits the
  * interactions through; the view-model orchestrator strips the setters before the
  * public view model reaches `RenderCellDisplay` (docs/CONVENTIONS.md scale rule).
+ *
+ * `isOver`, `fitCountVisible`, and `fitPiecesTooltipOpen` are independent derived
+ * gates, not parallel states of one widget — a blank cell with both hint prefs on
+ * shows the fit-count badge and the open tooltip at once, and a piece hovering the
+ * cell is orthogonal to both — so they stay parallel booleans rather than a
+ * discriminated union (UC13 “When Not to Use It”: independent simple flags); the
+ * only stored state here is `hovered`/`tapped`, the two reveal inputs of the one
+ * hint.
  */
+// eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface CellDisplayInternals {
   readonly droppableNodeRef: (element: HTMLElement | null) => void;
   readonly isOver: boolean;
