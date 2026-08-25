@@ -306,6 +306,19 @@ describe("unfoldGame", () => {
       expectCachesConsistent(game);
     });
   }
+
+  it("pins the §5.5 UniqueCellHint fixture: seed 4 has exactly one forced piece [2,0,1]", () => {
+    const game = unfoldGame(buildBoard(4, 3, 3, 4), {
+      preventInvalidMoves: true,
+    });
+    const forced = [...game.availablePieces.keys()].filter(
+      (p) =>
+        game.availablePieces.get(p) === 1 &&
+        (game.pieceToFitCells.get(p)?.length ?? 0) === 1,
+    );
+    expect(forced).toHaveLength(1);
+    expect(isSamePiece(forced[0], P([2, 0, 1]))).toBe(true);
+  });
 });
 
 // =========================================================================
