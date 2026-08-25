@@ -16,9 +16,10 @@ import { RowDisplay } from "../RowDisplay/RowDisplay";
  * row/column. Each `CellDisplay` positions itself with its view model's
  * `gridRow`/`gridColumn` and paints its section-keyed `backgroundColor` (sections are
  * the §3.3 `sectionSize × sectionSize` sub-grid tiling, so section membership is
- * visually legible). Out of scope this phase, per the Phase 5 note: no
- * `hintFitPieceCount`/`showFitPiecesOnHover` logic (Phase 12) and no shared
- * piece-rendering component yet (Phase 6) — filled cells show a minimal placeholder.
+ * visually legible). Phase 12 (§5.2) rides on this grid: the cells show their
+ * fit-count hint and hover/tap fit-pieces tooltip from the `cellToFitPieces` cache
+ * this board slice carries. No shared piece-rendering component yet on filled cells
+ * (Phase 6) — they show a minimal placeholder.
  */
 export const BoardDisplay: TelescopeComponent<BoardDisplayState> = function (
   props: TelescopedProps<BoardDisplayState>,

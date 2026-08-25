@@ -36,6 +36,9 @@ function cellDisplayState(
   return {
     size: row.size,
     pieceType: row.pieceType,
+    cellToFitPieces: row.cellToFitPieces,
+    hintFitPieceCount: row.hintFitPieceCount,
+    showFitPiecesOnHover: row.showFitPiecesOnHover,
     row: row.rowIndex,
     col: cell.col,
     piece: cell.piece,
@@ -46,10 +49,11 @@ function cellDisplayState(
  * The magnification focusing a row telescope down to the cell at `col`.
  *
  * Intentional asymmetry: `get` exposes the full `CellDisplayState` (board-level
- * invariants `size`/`pieceType` plus the fixed `row`/`col` position, all
- * forwarded as read-only context to the cell), but `set` writes back only
- * `piece` — the sole cell-local mutable field. `size`/`pieceType` are
- * board-wide and cannot be changed per-cell.
+ * invariants `size`/`pieceType`/`cellToFitPieces`/hint preferences, plus the
+ * fixed `row`/`col` position, all forwarded as read-only context to the cell),
+ * but `set` writes back only `piece` — the sole cell-local mutable field.
+ * `size`/`pieceType`/the cache/hint preferences are board-wide and cannot be
+ * changed per-cell.
  */
 export function cellLens(col: number): Lens<RowDisplayState, CellDisplayState> {
   return new Lens(

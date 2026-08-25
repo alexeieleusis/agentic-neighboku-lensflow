@@ -26,16 +26,17 @@ export function useAppViewModel(
     props.state;
 
   // App → BoardDisplay (§7.2): a read-only magnification of the shell telescope onto
-  // the board slice. The board is a derived view of `game.board`; placement commits
-  // rebuild `game` wholesale through the shell telescope (`resolveDragDrop` →
+  // the board slice. The board is a derived view of `game.board` (plus, since Phase
+  // 12, `game.cellToFitPieces` and the shell's two hint preferences); placement
+  // commits rebuild `game` wholesale through the shell telescope (`resolveDragDrop` →
   // `placePiece`), never through this slice — so the slice simply mirrors
   // `game.board` as the shell state changes.
   const board = useMemo<TelescopedProps<BoardDisplayState>>(
     () => ({
-      state: buildBoardDisplayState(game, preferences.pieceType),
+      state: buildBoardDisplayState(game, preferences),
       telescope: props.telescope.magnify(BOARD_DISPLAY_LENS),
     }),
-    [game, preferences.pieceType, props.telescope],
+    [game, preferences, props.telescope],
   );
 
   // App → AvailablePiecesTray (§7.2): the same read-only magnification onto the tray
@@ -72,12 +73,13 @@ export function useAppViewModel(
 /**
  * The App → BoardDisplay magnification (§7.2). The getter derives the board slice from
  * the shell state; the setter is deliberately the identity: the board is a read-only
- * projection of `game.board` — any write through the board telescope is a no-op, since
+ * projection of `game.board` (and, since Phase 12, of `game.cellToFitPieces` and the
+ * shell's hint preferences) — any write through the board telescope is a no-op, since
  * placement is committed by rebuilding `game` wholesale and updating the shell
  * telescope instead (`resolveDragDrop` in `useAppDomain.ts`).
  */
 const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
-  (state) => buildBoardDisplayState(state.game, state.preferences.pieceType),
+  (state) => buildBoardDisplayState(state.game, state.preferences),
   (_boardState, state) => state,
 );
 

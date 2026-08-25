@@ -1,13 +1,10 @@
-import type { AppState } from "./App.types.ts";
+import type { AppPreferences, AppState } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type {
   BoardDisplayState,
   BoardRow,
 } from "./components/BoardDisplay/BoardDisplay.types.ts";
-import type {
-  BoardCell,
-  PieceType,
-} from "./components/CellDisplay/CellDisplay.types.ts";
+import type { BoardCell } from "./components/CellDisplay/CellDisplay.types.ts";
 import { cellFromDroppableId } from "./components/CellDisplay/useCellDisplayDomain.ts";
 import { pieceFromDraggableId } from "./components/DraggablePiece/useDraggablePieceDomain.ts";
 import type { Piece } from "./game/entities";
@@ -25,11 +22,14 @@ import type { Game } from "./game/gameBuilder.ts";
 /**
  * Flatten a frozen `Board` into Phase 5's `BoardDisplayState`: one `BoardRow` per
  * board row, cells in column order, plus the app-level `pieceType` the shell owns
- * (requirements §4.2) that cells forward to their droppable targets.
+ * (requirements §4.2) that cells forward to their droppable targets — and, since
+ * Phase 12 (§5.2), the move engine's `cellToFitPieces` fit cache and the two hint
+ * preferences, forwarded so the cells' fit-count/hover hints derive from the shared
+ * cache rather than recomputing fit legality.
  */
 export function buildBoardDisplayState(
   game: Game,
-  pieceType: PieceType,
+  preferences: AppPreferences,
 ): BoardDisplayState {
   const rows: BoardRow[] = [];
   for (let row = 0; row < game.size; row++) {
@@ -39,7 +39,14 @@ export function buildBoardDisplayState(
     }
     rows.push({ index: row, cells });
   }
-  return { size: game.size, pieceType, rows };
+  return {
+    size: game.size,
+    pieceType: preferences.pieceType,
+    cellToFitPieces: game.cellToFitPieces,
+    hintFitPieceCount: preferences.hints.fitPieceCount,
+    showFitPiecesOnHover: preferences.hints.showFitPiecesOnHover,
+    rows,
+  };
 }
 
 /**

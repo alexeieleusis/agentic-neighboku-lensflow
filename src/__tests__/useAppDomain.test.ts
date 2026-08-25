@@ -292,7 +292,7 @@ describe("resolveTrayPiece (§8.7 reference resolution)", () => {
 describe("shell state-slice builders (moved from App.tsx)", () => {
   it("buildBoardDisplayState flattens the board into rows of cells", () => {
     const game = buildGame();
-    const slice = buildBoardDisplayState(game, "Shapes");
+    const slice = buildBoardDisplayState(game, buildState(game).preferences);
     expect(slice.size).toBe(4);
     expect(slice.rows).toHaveLength(4);
     expect(slice.rows.map((r) => r.index)).toEqual([0, 1, 2, 3]);

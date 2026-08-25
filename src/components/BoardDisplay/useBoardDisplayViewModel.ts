@@ -38,6 +38,9 @@ function rowDisplayState(
   return {
     size: board.size,
     pieceType: board.pieceType,
+    cellToFitPieces: board.cellToFitPieces,
+    hintFitPieceCount: board.hintFitPieceCount,
+    showFitPiecesOnHover: board.showFitPiecesOnHover,
     rowIndex: row.index,
     cells: row.cells,
   };
@@ -47,9 +50,10 @@ function rowDisplayState(
  * The magnification focusing a board telescope down to the row at `index`.
  *
  * Intentional asymmetry: `get` exposes the full `RowDisplayState` (including
- * board-level invariants `size` and `pieceType` forwarded as read-only context
- * to cells), but `set` only writes back `cells` — the sole row-local mutable
- * field. `size`/`pieceType` are board-wide and cannot be changed per-row.
+ * board-level invariants `size`, `pieceType`, and — since Phase 12 — the
+ * `cellToFitPieces` cache and hint preferences, all forwarded as read-only
+ * context to cells), but `set` only writes back `cells` — the sole row-local
+ * mutable field. The invariants are board-wide and cannot be changed per-row.
  */
 export function rowLens(
   index: number,

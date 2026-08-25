@@ -28,7 +28,16 @@ function buildBoardDisplayState(size: number): BoardDisplayState {
       piece: row % 2 === 0 ? ([0, 1, 2] as const) : null,
     })),
   }));
-  return { size, pieceType: "Shapes", rows };
+  // Phase 12 fields: an empty cache with both hints off, so the cells render exactly
+  // as the pre-Phase-12 fixtures did and these assertions stay focused on layout.
+  return {
+    size,
+    pieceType: "Shapes",
+    rows,
+    cellToFitPieces: new Map(),
+    hintFitPieceCount: false,
+    showFitPiecesOnHover: false,
+  };
 }
 
 describe("BoardDisplay", () => {
