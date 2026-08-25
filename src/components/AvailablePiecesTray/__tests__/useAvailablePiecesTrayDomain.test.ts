@@ -183,6 +183,20 @@ function pickLegalPlacement(game: Game): readonly [Piece, Cell] {
   throw new Error("fixture: unfolded game has no legal placement (impossible)");
 }
 
+/**
+ * A (piece, blank cell) pair where the piece does NOT legally fit the cell: every
+ * unfolded tray piece has ≥1 fit cell, but not every blank cell admits every tray
+ * piece, so some such pair always exists.
+ */
+function pickIllegalPlacement(game: Game): readonly [Piece, Cell] {
+  for (const [piece, fits] of game.pieceToFitCells) {
+    for (const idx of game.cellToFitPieces.keys()) {
+      if (!fits.includes(idx)) return [piece, cellFromIndex(game.size, idx)];
+    }
+  }
+  throw new Error("fixture: no illegal placement found (impossible)");
+}
+
 describe("isForcedPlacement (§5.5 second bullet)", () => {
   // [0,2,0] ×2 remaining, exactly two legal fit-cells → forced; [1,0,0] ×1
   // remaining, two fit-cells → not; [0,0,0] ×1 remaining, absent from the cache
@@ -278,20 +292,6 @@ describe("placeTrayPiece (Phase 13 click-to-place commit)", () => {
 
   function buildGame(preventInvalidMoves = true): Game {
     return unfoldGame(buildBoard(4, 3, 3, GAME_SEED), { preventInvalidMoves });
-  }
-
-  /**
-   * A (piece, blank cell) pair where the piece does NOT legally fit the cell: every
-   * unfolded tray piece has ≥1 fit cell, but not every blank cell admits every tray
-   * piece, so some such pair always exists.
-   */
-  function pickIllegalPlacement(game: Game): readonly [Piece, Cell] {
-    for (const [piece, fits] of game.pieceToFitCells) {
-      for (const idx of game.cellToFitPieces.keys()) {
-        if (!fits.includes(idx)) return [piece, cellFromIndex(game.size, idx)];
-      }
-    }
-    throw new Error("fixture: no illegal placement found (impossible)");
   }
 
   it("delegates to placePiece: board filled, tray decremented, caches recomputed, move recorded", () => {
