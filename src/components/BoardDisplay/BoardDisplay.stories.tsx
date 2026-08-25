@@ -1,7 +1,8 @@
 import Box from "@mui/material/Box";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useStoryTelescope } from "../../base/useStoryTelescope";
-import { createPiece } from "../../game/entities";
+import { createPiece, type Piece } from "../../game/entities";
+import { cellIndex } from "../../game/gameBuilder";
 import { BoardDisplay } from "./BoardDisplay";
 import type { BoardDisplayState, BoardRow } from "./BoardDisplay.types";
 
@@ -12,6 +13,15 @@ import type { BoardDisplayState, BoardRow } from "./BoardDisplay.types";
  * distinction are visible at a glance.
  */
 function buildBoardState(size: number): BoardDisplayState {
+  // Phase 12 §5.2 — a hand-authored fit cache for the fixture's blank (odd) rows:
+  // three "would fit" pieces per blank cell, so the §5.2 hints (the fit-count badges
+  // and the hover/tap tooltips) are visible in the catalog.
+  const fits: Piece[] = [
+    createPiece([0, 1, 0], 3, 3),
+    createPiece([1, 2, 1], 3, 3),
+    createPiece([2, 0, 2], 3, 3),
+  ];
+  const fitsCache = new Map<number, readonly Piece[]>();
   const rows: BoardRow[] = [];
   for (let row = 0; row < size; row++) {
     const cells = Array.from({ length: size }, (_, col) => ({
@@ -22,9 +32,21 @@ function buildBoardState(size: number): BoardDisplayState {
           ? createPiece([row % 3, col % 3, (row + col) % 3], 3, 3)
           : null,
     }));
+    if (row % 2 !== 0) {
+      for (let col = 0; col < size; col++) {
+        fitsCache.set(cellIndex(size, row, col), fits);
+      }
+    }
     rows.push({ index: row, cells });
   }
-  return { size, pieceType: "Shapes", rows };
+  return {
+    size,
+    pieceType: "Shapes",
+    rows,
+    cellToFitPieces: fitsCache,
+    hintFitPieceCount: true,
+    showFitPiecesOnHover: true,
+  };
 }
 
 function BoardDisplayHost(
