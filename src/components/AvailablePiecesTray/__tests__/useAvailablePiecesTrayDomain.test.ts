@@ -173,6 +173,16 @@ function trayState(
   return { game, availablePieceUniqueCell, pieceCells };
 }
 
+/** A guaranteed-legal (piece, blank cell) pair, read off the fit cache. */
+function pickLegalPlacement(game: Game): readonly [Piece, Cell] {
+  for (const [piece, cells] of game.pieceToFitCells) {
+    if (cells.length > 0) {
+      return [piece, cellFromIndex(game.size, cells[0])];
+    }
+  }
+  throw new Error("fixture: unfolded game has no legal placement (impossible)");
+}
+
 describe("isForcedPlacement (§5.5 second bullet)", () => {
   // [0,2,0] ×2 remaining, exactly two legal fit-cells → forced; [1,0,0] ×1
   // remaining, two fit-cells → not; [0,0,0] ×1 remaining, absent from the cache
@@ -268,18 +278,6 @@ describe("placeTrayPiece (Phase 13 click-to-place commit)", () => {
 
   function buildGame(preventInvalidMoves = true): Game {
     return unfoldGame(buildBoard(4, 3, 3, GAME_SEED), { preventInvalidMoves });
-  }
-
-  /** A guaranteed-legal (piece, blank cell) pair, read off the fit cache. */
-  function pickLegalPlacement(game: Game): readonly [Piece, Cell] {
-    for (const [piece, cells] of game.pieceToFitCells) {
-      if (cells.length > 0) {
-        return [piece, cellFromIndex(game.size, cells[0])];
-      }
-    }
-    throw new Error(
-      "fixture: unfolded game has no legal placement (impossible)",
-    );
   }
 
   /**
