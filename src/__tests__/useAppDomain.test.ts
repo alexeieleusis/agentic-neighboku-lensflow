@@ -302,6 +302,24 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
       col: 2,
       piece: game.board[1][2],
     });
+    expect(slice.pieceType).toBe("Shapes");
+    expect(slice.cellToFitPieces).toBe(game.cellToFitPieces);
+    expect(slice.hintFitPieceCount).toBe(false);
+    expect(slice.showFitPiecesOnHover).toBe(false);
+  });
+
+  it("buildBoardDisplayState forwards hint preferences from preferences.hints", () => {
+    const game = buildGame();
+    const state = buildState(game);
+    const prefs = {
+      ...state.preferences,
+      hints: { ...state.preferences.hints, fitPieceCount: true, showFitPiecesOnHover: true },
+    };
+    const slice = buildBoardDisplayState(game, prefs);
+    expect(slice.pieceType).toBe("Shapes");
+    expect(slice.cellToFitPieces).toBe(game.cellToFitPieces);
+    expect(slice.hintFitPieceCount).toBe(true);
+    expect(slice.showFitPiecesOnHover).toBe(true);
   });
 
   it("buildAvailablePiecesTrayState mirrors the move engine's remaining tray", () => {
