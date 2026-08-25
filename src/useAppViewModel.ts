@@ -39,15 +39,18 @@ export function useAppViewModel(
     [game, preferences, props.telescope],
   );
 
-  // App → AvailablePiecesTray (§7.2): the same read-only magnification onto the tray
-  // slice — a derived view of `game.availablePieces` (+ `game.size`); it mirrors the
-  // shell state's tray slice as placements (and Phase 10's undos) rebuild `game`.
+  // App → AvailablePiecesTray (§7.2): the magnification onto the tray slice — a view
+  // of the whole `Game` (its tray/fit-cache fields feed the columns; Phase 13's
+  // click-to-place hands a `(piece, cell)` to `placePiece`, which needs the whole
+  // game) plus the two tray-scoped hint flags. Reads mirror the shell state as
+  // placements (and Phase 10's undos) rebuild `game`; the one write path is Phase
+  // 13's commit (see the lens below).
   const tray = useMemo<TelescopedProps<AvailablePiecesTrayState>>(
     () => ({
-      state: buildAvailablePiecesTrayState(game),
+      state: buildAvailablePiecesTrayState(game, preferences.hints),
       telescope: props.telescope.magnify(AVAILABLE_PIECES_TRAY_LENS),
     }),
-    [game, props.telescope],
+    [game, preferences.hints, props.telescope],
   );
 
   const topBar = useMemo<TopBarView>(
@@ -84,11 +87,17 @@ const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
 );
 
 /**
- * The App → AvailablePiecesTray magnification (§7.2). Same deliberate asymmetry: the
- * tray is a read-only projection of `game.availablePieces`, mirrored from the shell
- * state rather than written through.
+ * The App → AvailablePiecesTray magnification (§7.2). The getter derives the tray
+ * slice (the whole `Game` plus the two tray-scoped hint flags — see
+ * `buildAvailablePiecesTrayState`). The setter is Phase 13's click-to-place commit
+ * path, mirroring the undo lens's shape: the tray's write carries its next slice —
+ * whose `game` is the next `Game` the tray's action tier produced through the
+ * shared `placePiece` — and the setter realises it by lifting `trayState.game` onto
+ * `AppState.game`. The hint flags are shell-owned (they only move when the
+ * preferences update, Phase 16), so the setter keeps the shell's own; every other
+ * write through this slice is that commit — nothing else writes through it.
  */
 const AVAILABLE_PIECES_TRAY_LENS = new Lens<AppState, AvailablePiecesTrayState>(
-  (state) => buildAvailablePiecesTrayState(state.game),
-  (_trayState, state) => state,
+  (state) => buildAvailablePiecesTrayState(state.game, state.preferences.hints),
+  (trayState, state) => ({ ...state, game: trayState.game }),
 );

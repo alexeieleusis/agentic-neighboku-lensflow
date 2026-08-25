@@ -1,5 +1,14 @@
 import type { Piece } from "../../game/entities";
-import type { Tray } from "../../game/gameBuilder";
+import {
+  cellFromIndex,
+  placePiece,
+  type Cell,
+  type Tray,
+} from "../../game/gameBuilder";
+import type {
+  AvailablePiecesTrayState,
+  TrayPlacementCell,
+} from "./AvailablePiecesTray.types";
 
 /**
  * §5.5 — the pure tier of this component's fractal split (requirements §7.2.1): no
@@ -82,4 +91,81 @@ function assertSingleAttributeLength(remaining: readonly Piece[]): void {
  */
 export function trayRemainingCount(tray: Tray, piece: Piece): number {
   return tray.get(piece) ?? 0;
+}
+
+/** The shared empty list returned when a hint bullet has nothing to show. */
+const NO_PLACEMENTS: readonly TrayPlacementCell[] = [];
+
+/**
+ * §5.5 second bullet — the "this piece's placement is now forced" comparison: a
+ * tray value's placement is forced exactly when the number of its legal fit-cells
+ * (the move engine's current `pieceToFitCells` cache) equals its remaining tray
+ * count. `false` whenever `availablePieceUniqueCell` is off — the gate lives here,
+ * so a flag-off tray can never surface a `*` no matter what the cache says.
+ *
+ * A value absent from the cache has zero fit-cells and reads `false` against any
+ * positive count; a value with neither fits nor copies is a no-column value (see
+ * {@link sortedRemainingPieces}), so the `0 === 0` case never reaches the render.
+ */
+export function isForcedPlacement(
+  state: AvailablePiecesTrayState,
+  piece: Piece,
+): boolean {
+  if (!state.availablePieceUniqueCell) return false;
+  const count = trayRemainingCount(state.game.availablePieces, piece);
+  if (count === 0) return false;
+  const fits = state.game.pieceToFitCells.get(piece)?.length ?? 0;
+  return fits === count;
+}
+
+/**
+ * §5.5 third bullet — the 1-indexed `row,column` label of a cell for a
+ * click-to-place button: `(0,0)` is labeled `1,1`, `(2,5)` is labeled `3,6`.
+ */
+export function placementCellLabel(cell: Cell): string {
+  const [row, col] = cell;
+  return `${row + 1},${col + 1}`;
+}
+
+/**
+ * §5.5 third bullet — the click-to-place targets of one piece value: one
+ * `{ cell, label }` per legal fit-cell of the current `pieceToFitCells` cache, in
+ * the cache's (row-major) order, each labeled by {@link placementCellLabel}.
+ * `[]` — always the same shared reference — when the `pieceCells` hint is off, so
+ * a flag-off tray renders no buttons whatever the cache holds.
+ */
+export function piecePlacementCells(
+  state: AvailablePiecesTrayState,
+  piece: Piece,
+): readonly TrayPlacementCell[] {
+  if (!state.pieceCells) return NO_PLACEMENTS;
+  const { pieceToFitCells, size } = state.game;
+  return (pieceToFitCells.get(piece) ?? []).map((index) => {
+    const cell = cellFromIndex(size, index);
+    return { cell, label: placementCellLabel(cell) };
+  });
+}
+
+/**
+ * Phase 13 — the next slice state after clicking the `piece`-on-`cell`
+ * click-to-place button: the entire placement is delegated to Phase 3's
+ * `placePiece` — the exact same function the shell's drag-and-drop commits through
+ * (`resolveDragDrop` → `placePiece`, §3.5 all six steps: tray decrement, board
+ * write, both fit caches recomputed, move recorded) — and the result slice carries
+ * that next `Game` while the hint flags pass through unchanged. No placement
+ * logic lives in this component.
+ *
+ * The written slice is the commit itself: the tray's magnified telescope realizes
+ * it through the shell's tray-lens setter (`useAppViewModel.ts`), which lifts
+ * `trayState.game` onto `AppState.game` — the same write-carries-next-state shape
+ * as the shell's undo lens. Every button is built from the current
+ * `pieceToFitCells`, so any clickable `(piece, cell)` is legal by construction and
+ * `placePiece`'s invalid-move throw is unreachable from this path.
+ */
+export function placeTrayPiece(
+  state: AvailablePiecesTrayState,
+  piece: Piece,
+  cell: Cell,
+): AvailablePiecesTrayState {
+  return { ...state, game: placePiece(piece, cell, state.game) };
 }
