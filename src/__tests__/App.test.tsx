@@ -1,8 +1,16 @@
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { KeyboardSensor, PointerSensor, TouchSensor } from "@dnd-kit/core";
 import type { DndContextProps } from "@dnd-kit/core";
 import { Telescope } from "telescopejs";
+import type { TelescopedProps } from "../base/TelescopeComponent";
 import { ThemeProvider } from "@mui/material/styles";
 import { App } from "../App";
 import type { AppState, AppPreferences } from "../App.types";
@@ -74,13 +82,31 @@ function remainingUnits(state: AppState): number {
   return total;
 }
 
-/** Mount the real shell the way `main.tsx` does (dark MUI theme forced, §5.1). */
+/**
+ * Mount the real shell the way `main.tsx` does (dark MUI theme forced, §5.1), with
+ * the root's once-per-stream subscription (§5.1) reproduced: `App` receives only the
+ * latest state snapshot and never subscribes to the stream itself, so a test that
+ * writes through the telescope (an action commit, a Snackbar dismissal) sees the
+ * shell re-render only through this same subscription path.
+ */
 function renderApp(state: AppState) {
-  return render(
+  const telescope = Telescope.of(state);
+  const utils = render(
     <ThemeProvider theme={darkTheme}>
-      <App state={state} telescope={Telescope.of(state)} />
+      <ShellHarness state={state} telescope={telescope} />
     </ThemeProvider>,
   );
+  return { ...utils, telescope };
+}
+
+/** The `main.tsx` root subscription, factored into a component for the test harness. */
+function ShellHarness(props: TelescopedProps<AppState>): React.ReactElement {
+  const [current, setCurrent] = useState(props.state);
+  useEffect(() => {
+    const subscription = props.telescope.stream.subscribe(setCurrent);
+    return () => subscription.unsubscribe();
+  }, [props.telescope]);
+  return <App state={current} telescope={props.telescope} />;
 }
 
 describe("App shell (§5.1 + §5.6 shared drag context)", () => {
@@ -128,6 +154,11 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     expect(
       screen.getByRole("button", { name: "Undo" }).hasAttribute("disabled"),
     ).toBe(true);
+
+    // Overlays start closed (§5.12 Phase 11 / §5.13 Phase 15): a closed MUI
+    // Snackbar renders nothing at all, so the feedback simply is not in the DOM.
+    expect(screen.queryByText("Invalid move!")).toBeNull();
+    expect(screen.queryByText("Game finished")).toBeNull();
   });
 
   it("accepts desktop pointer AND mobile touch on the one shared DndContext (§5.6/§7.6)", () => {
@@ -157,5 +188,84 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     expect(bySensor.get(TouchSensor)).toEqual({
       activationConstraint: { delay: 250, tolerance: 5 },
     });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.12 invalid-move feedback (Phase 11)                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The shell with the invalid-move feedback flagged OPEN in its initial state — the
+ * same `AppState` shape a rejected placement produces through
+ * `resolveDragDrop` → `useAppActions.onDragEnd`; the open/closed round-trip below is
+ * what the real drag path is composed of (domain+action coverage lives in
+ * `useAppDomain.test.ts` / `useAppActions.test.tsx`).
+ */
+function buildOpenSnackbarState(): AppState {
+  return { ...buildAppState(), invalidMoveSnackbarOpen: true };
+}
+
+describe("App shell §5.12 — invalid-move feedback (Phase 11)", () => {
+  it("renders the error-severity 'Invalid move!' alert while the flag is set, and the close button dismisses it through the shell's action tier", () => {
+    vi.useFakeTimers();
+    try {
+      const { telescope } = renderApp(buildOpenSnackbarState());
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      // §5.12: an error-severity Alert with the exact text. A `severity="error"`
+      // Alert roots at role="alert" (only success maps to "status") and carries
+      // the error color class.
+      const alert = screen.getByRole("alert");
+      expect(alert.className).toContain("MuiAlert-colorError");
+      expect(alert.contains(screen.getByText("Invalid move!"))).toBe(true);
+
+      // §5.12 manual close: the Alert's own close button (MUI wires its onClick to
+      // the Alert's `onClose`, which the shell hands to its action tier — the two
+      // are distinct callbacks, both committed through the telescope).
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      act(() => {
+        vi.advanceTimersByTime(1000); // let the exit transition settle
+      });
+
+      // The dismissal flowed through the action tier, not local UI state: the
+      // shell telescope re-emitted with the flag closed, and the alert left the DOM.
+      expect(emissions.at(-1)?.invalidMoveSnackbarOpen).toBe(false);
+      expect(screen.queryByText("Invalid move!")).toBeNull();
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("auto-hides the open feedback after 6 seconds, with no interaction", () => {
+    vi.useFakeTimers();
+    try {
+      const { telescope } = renderApp(buildOpenSnackbarState());
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      expect(screen.getByText("Invalid move!")).toBeTruthy();
+
+      // §5.12 autoHideDuration: the 6-second timer is MUI's own; on expiry it fires
+      // the Snackbar's `onClose`, which is the shell's close action — so the state
+      // flip below is the auto-hide, not any local timer outside the telescope.
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      // The open→false re-render flushes at that act's end, which is when MUI starts
+      // the exit transition (its own timer, scheduled after the 6-second mark) — so
+      // it only settles on a further advance.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(emissions.at(-1)?.invalidMoveSnackbarOpen).toBe(false);
+      expect(screen.queryByText("Invalid move!")).toBeNull();
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

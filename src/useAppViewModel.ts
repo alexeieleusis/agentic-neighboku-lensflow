@@ -16,7 +16,8 @@ import {
  * (`useAppDomain.ts`) with the §7.2 magnified-telescope parent→child flow
  * (App → `BoardDisplay`, App → `AvailablePiecesTray`) and stays wiring-only. There is
  * no local non-telescope UI state in the shell, so no `useAppState` tier; the shell's
- * single user action (drag-end, §5.6) lives in `useAppActions.ts`.
+ * user actions (drag-end, §5.6; the Phase 11 invalid-move Snackbar dismissal, §5.12)
+ * live in `useAppActions.ts`.
  */
 export function useAppViewModel(
   props: Readonly<TelescopedProps<AppState>>,

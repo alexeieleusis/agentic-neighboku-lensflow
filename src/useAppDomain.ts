@@ -68,16 +68,18 @@ export interface DragDropEventIds {
 }
 
 /**
- * §5.6: the shared drop path. Reads the dropped piece's value and the target cell off
- * the drag event's ids and commits through `placePiece` — the same move-engine call
- * Phase 13's click-to-place will use. Every non-placement outcome returns the input
- * state unchanged (same reference, so no stream re-emission):
+ * §5.6 / §5.12 (Phase 11): the shared drop path. Reads the dropped piece's value and
+ * the target cell off the drag event's ids and commits through `placePiece` — the same
+ * move-engine call Phase 13's click-to-place will use. Every unplaced outcome returns
+ * the input state unchanged (same reference, so no stream re-emission):
  *   - dropped outside any droppable (`overId` is `null`) → no-op;
- *   - an id that does not parse as a cell / a tray piece / a held tray value → no-op;
- *   - an illegal placement with `preventInvalidMoves` (the default, §4.2) →
- *     `placePiece` throws (§3.5 step 2, before touching any state) and the throw is
- *     absorbed here — no partial mutation. Surfacing the rejection (the Snackbar
- *     opening) is Phase 11's concern; this path must simply not crash the app.
+ *   - an id that does not parse as a cell / a tray piece / a held tray value → no-op.
+ * The one outcome the shell reacts to beyond the engine: an illegal placement with
+ * `preventInvalidMoves` (the default, §4.2) makes `placePiece` throw (§3.5 step 2 — and
+ * the §3.5 out-of-bounds precondition — before touching any state) and the throw is
+ * absorbed here with no partial mutation; the next state is the input state with only
+ * `invalidMoveSnackbarOpen` set (§5.12) — `game` keeps its reference, so a rejected
+ * attempt changes nothing but the invalid-move feedback the shell now opens.
  */
 export function resolveDragDrop(
   state: AppState,
@@ -94,8 +96,21 @@ export function resolveDragDrop(
   try {
     return { ...state, game: placePiece(piece, cell, state.game) };
   } catch {
-    return state;
+    return { ...state, invalidMoveSnackbarOpen: true };
   }
+}
+
+/**
+ * §5.12 (Phase 11): the invalid-move feedback's dismissal. MUI fires this through the
+ * shell's action tier from either dismissal source — the Snackbar's own `onClose`
+ * (the 6-second auto-hide timeout, click-away, Escape) or the Alert's `onClose` (its
+ * close button, which MUI does not wire to the Snackbar's callback) — all of them
+ * meaning “the shell should now record the feedback as closed”. No-op (input reference
+ * back, no stream re-emission) when the feedback is already closed.
+ */
+export function closeInvalidMoveSnackbar(state: AppState): AppState {
+  if (!state.invalidMoveSnackbarOpen) return state;
+  return { ...state, invalidMoveSnackbarOpen: false };
 }
 
 /**

@@ -33,6 +33,7 @@ import type {
 import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
 import { undoPlay } from "./game/gameBuilder.ts";
 import { useAppActions } from "./useAppActions.ts";
+import type { AppActions } from "./useAppActions.ts";
 import { useAppViewModel } from "./useAppViewModel.ts";
 import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
 import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailablePiecesTray.tsx";
@@ -109,19 +110,20 @@ export const App: TelescopeComponent<AppState> = (
 /**
  * The `DndContext` descendant that runs the shell's hook tiers and renders the shell:
  * the view model (`useAppViewModel` — the `state,telescope → useXViewModel → RenderX`
- * contract, requirements §7.2), the drag-end monitor (`useAppActions.onDragEnd`,
- * registered via `useDndMonitor`, which reads the dropped piece's value and the target
- * cell off the event and commits through `placePiece` — the shared placement path,
- * §5.6; Phase 13's click-to-place will call the same path), and the Phase 10 undo
- * slice (`useUndoSlice` — the App → `UndoButton` §7.2 magnification).
+ * contract, requirements §7.2), the action tier (`useAppActions` — the drag-end
+ * monitor registered via `useDndMonitor` reads the dropped piece's value and the
+ * target cell off the event and commits through `placePiece`, the shared placement
+ * path, §5.6; Phase 13's click-to-place will call the same path — plus Phase 11's
+ * invalid-move Snackbar dismissal), and the Phase 10 undo slice (`useUndoSlice` — the
+ * App → `UndoButton` §7.2 magnification).
  */
 function AppConnected(
   props: Readonly<TelescopedProps<AppState>>,
 ): React.ReactElement {
-  useAppActions(props);
+  const actions = useAppActions(props);
   const viewModel = useAppViewModel(props);
   const undo = useUndoSlice(props);
-  return RenderApp({ viewModel, undo });
+  return RenderApp({ viewModel, undo, actions });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -169,13 +171,17 @@ function useUndoSlice(
 function RenderApp(props: {
   readonly viewModel: Readonly<AppViewModel>;
   readonly undo: TelescopedProps<UndoButtonState>;
+  readonly actions: Readonly<AppActions>;
 }): React.ReactElement {
-  const { viewModel, undo } = props;
+  const { viewModel, undo, actions } = props;
   return (
     <Stack spacing={2} sx={{ p: 2, maxWidth: "44rem", mx: "auto" }}>
       <RenderTopBar topBar={viewModel.topBar} undo={undo} />
       <AppBoardTray viewModel={viewModel} />
-      <RenderInvalidMoveSnackbar open={viewModel.snackbarOpen} />
+      <RenderInvalidMoveSnackbar
+        open={viewModel.snackbarOpen}
+        onClose={actions.onInvalidMoveSnackbarClose}
+      />
       <RenderGameFinishedDialog open={viewModel.dialogOpen} />
     </Stack>
   );
@@ -283,14 +289,26 @@ function AppBoardTray(
 /* Overlays                                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** §5.13/§5.12: closed by default; Phase 11 wires the open trigger + manual close. */
-function RenderInvalidMoveSnackbar(
-  props: Readonly<{ open: boolean }>,
-): React.ReactElement {
-  const { open } = props;
+/**
+ * §5.12 (Phase 11): the invalid-move feedback. Renders only while the shell state's
+ * `invalidMoveSnackbarOpen` flags the last placement attempt as rejected — opened by
+ * the drag-end path in `useAppDomain.resolveDragDrop` (a `placePiece` throw, §3.5),
+ * read through `useAppViewModel`'s `snackbarOpen` projection — so this function owns
+ * no UI state of its own: a pure projection of shell state plus the shell's close
+ * action. `autoHideDuration={6000}` auto-hides after 6 seconds; the same `onClose` is
+ * handed to BOTH the `Snackbar` (its auto-hide/click-away/Escape dismissal — MUI only
+ * runs the auto-hide timer at all when `onClose` is present) and the `Alert` (whose
+ * close button MUI does not wire to the Snackbar's callback), and both routes commit
+ * the dismissal through the shell telescope.
+ */
+function RenderInvalidMoveSnackbar(props: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+}): React.ReactElement {
+  const { open, onClose } = props;
   return (
-    <Snackbar open={open} autoHideDuration={6000}>
-      <Alert severity="error" sx={{ width: "100%" }}>
+    <Snackbar open={open} autoHideDuration={6000} onClose={onClose}>
+      <Alert severity="error" onClose={onClose} sx={{ width: "100%" }}>
         Invalid move!
       </Alert>
     </Snackbar>
