@@ -231,6 +231,45 @@ describe("AvailablePiecesTray §5.5 second bullet — the `*` hint", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* §5.5 edge case — a dead piece: remaining count > 0 with zero fit-cells       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * §5.5 edge-case fixture: a "dead piece" — [0,0,0] ×1 remaining whose
+ * `pieceToFitCells` entry is explicitly `[]`: no legal placement exists anywhere
+ * on the board. Both hints are on, so this pins the render path's `?? 0` / `?? []`
+ * defaults: such a piece keeps its bare column (image + count) while neither hint
+ * has anything to show.
+ */
+function deadPieceFixture(): AvailablePiecesTrayState {
+  const piece = createPiece([0, 0, 0], 3, 3);
+  return trayState(
+    gameOf(
+      6,
+      new Map<Piece, number>([[piece, 1]]),
+      new Map<Piece, number[]>([[piece, []]]),
+    ),
+    true,
+    true,
+  );
+}
+
+describe("AvailablePiecesTray §5.5 edge — a dead piece (count > 0, no fit-cells)", () => {
+  it("renders the bare column — no `*` hint and no click-to-place buttons — when both hints are on", () => {
+    const { container } = renderTray(deadPieceFixture());
+
+    // The piece still has copies remaining, so its column renders with the bare
+    // count …
+    expect(screen.getByText("1")).toBeTruthy();
+    // … but the empty fit-cell entry gives neither hint anything to show: the `*`
+    // is gated on fits === count (0 === 1 is false), and the button list maps the
+    // empty entry to nothing — no silent rendering bug, no crash.
+    expect(container.textContent ?? "").not.toContain("*");
+    expect(clickPlaceButtons(container)).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* §5.5 third bullet — the click-to-place cell list                             */
 /* -------------------------------------------------------------------------- */
 
