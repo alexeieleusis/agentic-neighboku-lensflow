@@ -3,6 +3,7 @@ import type { Game } from "./game/gameBuilder.ts";
 import type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
+import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -79,6 +80,16 @@ export interface AppState {
   readonly invalidMoveSnackbarOpen: boolean;
   /** §3.6/§5.13 game-finished overlay: closed by default; Phase 15 drives it. */
   readonly gameFinishedDialogOpen: boolean;
+  /**
+   * §5.6 (Phase 14): the drag-fit hint's current value — `"None"` whenever no drag
+   * is in progress, updated by the shell's drag-lifecycle monitor (`useAppActions`)
+   * as drag state changes. This is its own slice of shell state: the monitor's
+   * write and the App → `DragFitHintIcon` top-bar read each flow through an
+   * independent magnified telescope onto it (the dedicated `DRAG_HINT_LENS`),
+   * never through component props/callbacks, and never piggybacked on the
+   * board/tray slices.
+   */
+  readonly dragHint: DragHint;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,6 +124,14 @@ export interface AppViewModel {
    * owns the tray, and this slice mirrors it as `game` is rebuilt.
    */
   readonly tray: TelescopedProps<AvailablePiecesTrayState>;
+  /**
+   * The Phase 14 top-bar slice: the shell's current `DragHint` plus a magnified child
+   * telescope (`App` → `DragFitHintIcon`, §7.2) — the READ side of the §5.6 dedicated
+   * hint channel. Read-only from the icon's point of view: the writes land on the same
+   * `dragHint` slice through the shell's drag-lifecycle monitor's own independent
+   * magnification, and the slice mirrors it as shell state changes.
+   */
+  readonly dragHint: TelescopedProps<DragHint>;
   readonly topBar: TopBarView;
   /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;

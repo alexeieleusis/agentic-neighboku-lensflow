@@ -20,7 +20,6 @@ import Alert from "@mui/material/Alert";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SettingsIcon from "@mui/icons-material/Settings";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -31,6 +30,7 @@ import type {
   TelescopedProps,
 } from "./base/TelescopeComponent.ts";
 import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
+import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import { undoPlay } from "./game/gameBuilder.ts";
 import { useAppActions } from "./useAppActions.ts";
 import type { AppActions } from "./useAppActions.ts";
@@ -39,6 +39,7 @@ import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
 import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailablePiecesTray.tsx";
 import { UndoButton } from "./components/UndoButton/UndoButton.tsx";
 import type { UndoButtonState } from "./components/UndoButton/UndoButton.types.ts";
+import { DragFitHintIcon } from "./components/DragFitHintIcon/DragFitHintIcon.tsx";
 
 /**
  * Root application shell (requirements §5.1) and the shared shell-level `DndContext`
@@ -110,12 +111,14 @@ export const App: TelescopeComponent<AppState> = (
 /**
  * The `DndContext` descendant that runs the shell's hook tiers and renders the shell:
  * the view model (`useAppViewModel` — the `state,telescope → useXViewModel → RenderX`
- * contract, requirements §7.2), the action tier (`useAppActions` — the drag-end
- * monitor registered via `useDndMonitor` reads the dropped piece's value and the
- * target cell off the event and commits through `placePiece`, the shared placement
- * path, §5.6; Phase 13's click-to-place will call the same path — plus Phase 11's
- * invalid-move Snackbar dismissal), and the Phase 10 undo slice (`useUndoSlice` — the
- * App → `UndoButton` §7.2 magnification).
+ * contract, requirements §7.2), the action tier (`useAppActions` — the drag-lifecycle
+ * monitor registered via `useDndMonitor`: its `onDragEnd` reads the dropped piece's
+ * value and the target cell off the event and commits through `placePiece`, the shared
+ * placement path, §5.6; Phase 13's click-to-place will call the same path; Phase 14's
+ * `onDragStart`/`onDragOver`/`onDragCancel` write the §5.6 `DragHint` through the
+ * dedicated `dragHint` telescope as drag state changes — plus Phase 11's invalid-move
+ * Snackbar dismissal), and the Phase 10 undo slice (`useUndoSlice` — the App →
+ * `UndoButton` §7.2 magnification).
  */
 function AppConnected(
   props: Readonly<TelescopedProps<AppState>>,
@@ -176,7 +179,11 @@ function RenderApp(props: {
   const { viewModel, undo, actions } = props;
   return (
     <Stack spacing={2} sx={{ p: 2, maxWidth: "44rem", mx: "auto" }}>
-      <RenderTopBar topBar={viewModel.topBar} undo={undo} />
+      <RenderTopBar
+        topBar={viewModel.topBar}
+        undo={undo}
+        dragHint={viewModel.dragHint}
+      />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar
         open={viewModel.snackbarOpen}
@@ -194,16 +201,20 @@ function RenderApp(props: {
 /**
  * §5.1 top bar. The six elements are in this exact fixed order, per the shell spec:
  * drag-fit-hint icon, Preferences button, New Game button, Undo button, solvability
- * icon, Help button. The Preferences / New Game / Help buttons and the drag-fit-hint
- * icon are inert this phase (later phases wire their panels); the icon's live drag
- * state (§5.6's `DragHint`) lands in Phase 14. The Undo button (Phase 10) and the
- * solvability icon are derived from state.
+ * icon, Help button. The drag-fit-hint icon (Phase 14) is the child component proper —
+ * it reads the §5.6 `DragHint` off its own dedicated magnified telescope
+ * (`viewModel.dragHint`, the App → `DragFitHintIcon` slice) and renders the info /
+ * thumbs-up / thumbs-down states from it; this shell just places it in the slot Phase 4
+ * reserved. The Preferences / New Game / Help buttons are inert (later phases wire
+ * their panels); the Undo button (Phase 10) and the solvability icon are derived from
+ * state.
  */
 function RenderTopBar(props: {
   readonly topBar: Readonly<TopBarView>;
   readonly undo: TelescopedProps<UndoButtonState>;
+  readonly dragHint: TelescopedProps<DragHint>;
 }): React.ReactElement {
-  const { topBar, undo } = props;
+  const { topBar, undo, dragHint } = props;
   const solvability = topBar.solvability;
 
   let solvabilityIcon: React.ReactElement | null = null;
@@ -227,15 +238,14 @@ function RenderTopBar(props: {
     <AppBar position="static" sx={{ px: 1 }}>
       <Toolbar variant="dense">
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <Tooltip title="Drag to place; right-click or swipe to rotate">
-            <IconButton
-              size="small"
-              aria-label="Rotate piece to fit"
-              sx={{ "& .MuiSvgIcon-root": { transform: "rotate(45deg)" } }}
-            >
-              <OpenInNewIcon />
-            </IconButton>
-          </Tooltip>
+          {/*
+           * Phase 14: the drag-fit-hint slot is now the child component proper. It
+           * reads the §5.6 `DragHint` off its own dedicated magnified telescope
+           * (`dragHint`, the App → `DragFitHintIcon` slice) and renders the info /
+           * thumbs-up / thumbs-down states from it; the hint's writes come from the
+           * shell's drag-lifecycle monitor, never through this shell.
+           */}
+          <DragFitHintIcon {...dragHint} />
           <Tooltip title="Preferences">
             <IconButton size="small" aria-label="Preferences">
               <SettingsIcon />

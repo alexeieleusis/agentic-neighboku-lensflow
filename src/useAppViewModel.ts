@@ -3,6 +3,7 @@ import { Lens } from "telescopejs";
 import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
+import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import { stateIsValid } from "./game/gameBuilder.ts";
 import {
@@ -53,6 +54,21 @@ export function useAppViewModel(
     [game, preferences.hints, props.telescope],
   );
 
+  // App → DragFitHintIcon (§7.2, Phase 14): the dedicated magnification onto the
+  // shell's `dragHint` slice — the READ side of the §5.6 DragHint channel. It is an
+  // independent telescope from the one the shell's drag-lifecycle monitor
+  // (`useAppActions`) writes through: both magnify the same `DRAG_HINT_LENS` onto the
+  // same slice, and that is the whole channel — the icon never receives the hint as a
+  // raw prop or callback, and the monitor never writes through the shell's general
+  // telescope or the board/tray slices.
+  const dragHint = useMemo<TelescopedProps<DragHint>>(
+    () => ({
+      state: props.state.dragHint,
+      telescope: props.telescope.magnify(DRAG_HINT_LENS),
+    }),
+    [props.state.dragHint, props.telescope],
+  );
+
   const topBar = useMemo<TopBarView>(
     () => ({
       undoEnabled: game.placedCells.length > 0,
@@ -67,6 +83,7 @@ export function useAppViewModel(
   return {
     board,
     tray,
+    dragHint,
     topBar,
     snackbarOpen: invalidMoveSnackbarOpen,
     dialogOpen: gameFinishedDialogOpen,
@@ -100,4 +117,25 @@ const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
 const AVAILABLE_PIECES_TRAY_LENS = new Lens<AppState, AvailablePiecesTrayState>(
   (state) => buildAvailablePiecesTrayState(state.game, state.preferences.hints),
   (trayState, state) => ({ ...state, game: trayState.game }),
+);
+
+/**
+ * The dedicated App → `dragHint` magnification (§5.6/§7.2, Phase 14): the shell's
+ * `DragHint` slice as its own lens onto its own `DragHint` value — the “dedicated
+ * telescope” the requirement names, shared by two independent magnifications of it:
+ * the shell's drag-lifecycle monitor (`useAppActions`) writes the hint through one as
+ * drag state changes, and the top bar's `DragFitHintIcon` reads it through the other
+ * to choose its icon. Two telescopes, one lens, one slice — nothing else reads or
+ * writes through it, so the hint never piggybacks on the shell's general telescope or
+ * the board/tray slices.
+ *
+ * The setter is a no-op (input reference back, no stream re-emission) when the written
+ * value already equals the slice's current value: `onDragOver` fires on every
+ * hover-target change, and most of them leave the hint unchanged (e.g. moving between
+ * two cells that both reject the piece).
+ */
+export const DRAG_HINT_LENS = new Lens<AppState, DragHint>(
+  (state) => state.dragHint,
+  (hint, state) =>
+    hint === state.dragHint ? state : { ...state, dragHint: hint },
 );
