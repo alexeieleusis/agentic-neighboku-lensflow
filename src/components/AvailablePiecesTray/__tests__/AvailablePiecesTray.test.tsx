@@ -219,6 +219,15 @@ describe("AvailablePiecesTray §5.5 second bullet — the `*` hint", () => {
     expect(screen.getByText("2")).toBeTruthy();
     expect(container.textContent ?? "").not.toContain("*");
   });
+
+  it("renders no `*` when the fit-cell count exceeds the remaining count", () => {
+    // [0,0,0] now has THREE legal fit-cells against its 2 remaining copies: the
+    // "forced" condition is exact equality, so the surplus fit-cell keeps it
+    // non-forced — pinning the boundary a `>=` regression would cross.
+    const { container } = renderTray(forcedFixture(true, [0, 1, 2]));
+    expect(screen.getByText("2")).toBeTruthy();
+    expect(container.textContent ?? "").not.toContain("*");
+  });
 });
 
 /* -------------------------------------------------------------------------- */
