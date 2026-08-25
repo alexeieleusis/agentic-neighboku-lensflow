@@ -336,11 +336,16 @@ describe("placeTrayPiece (Phase 13 click-to-place commit)", () => {
     const game = buildGame();
     const state = trayState(game);
     const [piece, [row, col]] = pickLegalPlacement(game);
+    const countBefore = game.availablePieces.get(piece);
+    const targetIdx = cellIndex(game.size, row, col);
 
     placeTrayPiece(state, piece, [row, col]);
 
     expect(game.board[row][col]).toBeNull();
     expect(game.placedCells).toHaveLength(0);
+    expect(game.availablePieces.get(piece)).toBe(countBefore);
+    expect(game.pieceToFitCells.get(piece)).toContain(targetIdx);
+    expect(game.cellToFitPieces.get(targetIdx)).toContain(piece);
   });
 
   it("surfaces placePiece's out-of-bounds throw (the tray never invents cells of its own)", () => {
