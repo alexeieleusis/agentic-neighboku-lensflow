@@ -39,14 +39,11 @@ export function useSolvabilityIconViewModel(
   props: Readonly<TelescopedProps<SolvabilityIconState>>,
 ): SolvabilityIconViewModel {
   const { visible, solvable } = props.state;
+  const label = solvable ? ARIA_LABEL.solvable : ARIA_LABEL.unsolvable;
   return {
     visible,
     solvable,
-    ariaLabel: visible
-      ? solvable
-        ? ARIA_LABEL.solvable
-        : ARIA_LABEL.unsolvable
-      : "",
+    ariaLabel: visible ? label : "",
     color: solvable ? COLOR.solvable : COLOR.unsolvable,
   };
 }
