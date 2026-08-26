@@ -8,24 +8,24 @@ import type { DragFitHintIconViewModel } from "./DragFitHintIcon.types";
  * screen-reader user can tell “nothing is being dragged” from “a drag is in progress
  * but the fit is not (yet) determined”.
  */
-const ARIA_LABEL: Readonly<Record<DragHint, string>> = {
+const ARIA_LABEL = {
   None: "No piece is being dragged",
   Unknown: "Piece is being dragged",
   Ok: "Dragged piece fits",
   NotOk: "Dragged piece does not fit",
-};
+} satisfies Readonly<Record<DragHint, string>>;
 
 /**
  * §5.6 (Phase 14) — the MUI theme color token each `DragHint` paints in: the
  * idle/undetermined states keep the default text color, while the determined states
  * take the semantic success/error colors the shell's solvability icon already uses.
  */
-const COLOR: Readonly<Record<DragHint, string>> = {
+const COLOR = {
   None: "text.primary",
   Unknown: "text.primary",
   Ok: "success.main",
   NotOk: "error.main",
-};
+} satisfies Readonly<Record<DragHint, string>>;
 
 /**
  * Trivial tier (requirements §7.2.1, docs/CONVENTIONS.md scale rule): a simple leaf
