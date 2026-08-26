@@ -315,7 +315,12 @@ describe("App shell §5.12 — invalid-move feedback (Phase 11)", () => {
 
 /** The top-bar solvability indicator, looked up by its announced label. */
 function solvabilityIcon(label: string): SVGElement | null {
-  return document.querySelector<SVGElement>(`svg[aria-label="${label}"]`);
+  const svgs = document.querySelectorAll("svg[role='img']");
+  for (const svg of svgs) {
+    if (svg.querySelector("title")?.textContent === label)
+      return svg as SVGElement;
+  }
+  return null;
 }
 
 describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
@@ -324,7 +329,7 @@ describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
 
     expect(solvabilityIcon("Position is solvable")).not.toBeNull();
     expect(
-      solvabilityIcon("Position is solvable")?.getAttribute("aria-live"),
+      solvabilityIcon("Position is solvable")?.parentElement?.getAttribute("aria-live"),
     ).toBe("polite");
     // Exactly one face: the unsolvable icon is absent.
     expect(solvabilityIcon("No solution exists")).toBeNull();
@@ -335,7 +340,7 @@ describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
 
     expect(solvabilityIcon("No solution exists")).not.toBeNull();
     expect(
-      solvabilityIcon("No solution exists")?.getAttribute("aria-live"),
+      solvabilityIcon("No solution exists")?.parentElement?.getAttribute("aria-live"),
     ).toBe("polite");
     expect(solvabilityIcon("Position is solvable")).toBeNull();
   });

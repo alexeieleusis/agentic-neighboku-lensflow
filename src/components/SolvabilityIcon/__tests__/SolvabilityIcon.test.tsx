@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, renderHook } from "@testing-library/react";
+import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { Telescope } from "telescopejs";
 import type { TelescopedProps } from "../../../base/TelescopeComponent";
 import { SolvabilityIcon } from "../SolvabilityIcon";
@@ -19,16 +19,11 @@ function sliceProps(
 }
 
 /**
- * The indicator's icon, looked up by its announced label. MUI's `SvgIcon`
- * renders no `role` attribute of its own here (no `titleAccess`), so the
- * `aria-label` is the slot's query surface — the same one a screen reader
- * would use.
+ * The indicator's icon, looked up by its announced label through the
+ * accessibility tree — the same query surface a screen reader would use.
  */
 function iconFor(label: string): SVGElement {
-  const icon = document.querySelector<SVGElement>(`svg[aria-label="${label}"]`);
-  if (icon === null)
-    throw new Error(`expected the ${JSON.stringify(label)} indicator`);
-  return icon;
+  return screen.getByRole<SVGElement>("img", { name: label });
 }
 
 describe("useSolvabilityIconViewModel (§5.13 / Phase 15 slice → presentation)", () => {
@@ -63,7 +58,7 @@ describe("SolvabilityIcon (§5.13 / Phase 15 top-bar slot)", () => {
       <SolvabilityIcon {...sliceProps({ visible: true, solvable: true })} />,
     );
     const icon = iconFor("Position is solvable");
-    expect(icon.getAttribute("aria-live")).toBe("polite");
+    expect(icon.parentElement?.getAttribute("aria-live")).toBe("polite");
     // §5.1: the solvable face is the `CheckCircle` glyph — a circle with a
     // check path (as opposed to the unsolvable face's warning-triangle
     // path, asserted distinct below).
@@ -75,7 +70,7 @@ describe("SolvabilityIcon (§5.13 / Phase 15 top-bar slot)", () => {
       <SolvabilityIcon {...sliceProps({ visible: true, solvable: false })} />,
     );
     const icon = iconFor("No solution exists");
-    expect(icon.getAttribute("aria-live")).toBe("polite");
+    expect(icon.parentElement?.getAttribute("aria-live")).toBe("polite");
   });
 
   it("renders the two visible faces as distinct icons", () => {

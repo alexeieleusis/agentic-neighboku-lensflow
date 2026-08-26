@@ -48,18 +48,23 @@ function RenderSolvabilityIcon(
   if (!viewModel.visible) return null;
 
   // §5.1: `CheckCircle` (solvable) vs. `ReportProblem` (unsolvable), in the
-  // semantic success/error theme colors, announced politely.
-  return viewModel.solvable ? (
-    <CheckCircleIcon
-      aria-live="polite"
-      aria-label={viewModel.ariaLabel}
-      sx={{ color: viewModel.color, p: 0.5 }}
-    />
-  ) : (
-    <ReportProblemIcon
-      aria-live="polite"
-      aria-label={viewModel.ariaLabel}
-      sx={{ color: viewModel.color, p: 0.5 }}
-    />
+  // semantic success/error theme colors, announced politely. The `aria-live`
+  // region is a persistent wrapper span so that face-to-face label changes
+  // (solvable ↔ unsolvable) are re-announced: the live region itself survives
+  // the child icon swap.
+  return (
+    <span aria-live="polite">
+      {viewModel.solvable ? (
+        <CheckCircleIcon
+          titleAccess={viewModel.ariaLabel}
+          sx={{ color: viewModel.color, p: 0.5 }}
+        />
+      ) : (
+        <ReportProblemIcon
+          titleAccess={viewModel.ariaLabel}
+          sx={{ color: viewModel.color, p: 0.5 }}
+        />
+      )}
+    </span>
   );
 }
