@@ -18,12 +18,12 @@ function hintProps(hint: DragHint): TelescopedProps<DragHint> {
 
 function iconSvgFor(hint: DragHint): SVGElement {
   render(<DragFitHintIcon {...hintProps(hint)} />);
-  const ariaLabel: Record<DragHint, string> = {
+  const ariaLabel = {
     None: "No piece is being dragged",
     Unknown: "Piece is being dragged",
     Ok: "Dragged piece fits",
     NotOk: "Dragged piece does not fit",
-  };
+  } satisfies Record<DragHint, string>;
   const slot = screen.getByRole("button", { name: ariaLabel[hint] });
   const svg = slot.querySelector("svg");
   if (svg === null) throw new Error(`expected an icon svg in the ${hint} slot`);
