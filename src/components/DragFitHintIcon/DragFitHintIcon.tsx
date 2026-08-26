@@ -37,14 +37,14 @@ function RenderDragFitHintIcon(
   // §5.6: the four hint values collapse onto the three documented icons — `None` and
   // `Unknown` both show the info icon (a drag not over a determinable target is
   // visually the same "undetermined" state).
-  const icon =
-    viewModel.hint === "Ok" ? (
-      <ThumbUpIcon />
-    ) : viewModel.hint === "NotOk" ? (
-      <ThumbDownIcon />
-    ) : (
-      <InfoIcon />
-    );
+  let icon: React.ReactElement;
+  if (viewModel.hint === "Ok") {
+    icon = <ThumbUpIcon />;
+  } else if (viewModel.hint === "NotOk") {
+    icon = <ThumbDownIcon />;
+  } else {
+    icon = <InfoIcon />;
+  }
 
   return (
     <Tooltip title="Drag to place; right-click or swipe to rotate">
