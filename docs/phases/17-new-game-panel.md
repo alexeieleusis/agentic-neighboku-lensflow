@@ -47,7 +47,7 @@ unfolds a fresh puzzle, resets `gamePlay.startTime`, and closes the panel.
 - Verify the dimension rule visually by checking piece rendering has 2 visual attributes (form + border color) when dimension is 2 and 3 visual attributes (form + border color + fill color) when dimension is 3.
 - Confirm `base` never changes regardless of which size is selected, by comparing the set of distinct piece values available before and after each Start.
 - Confirm the New Game drawer closes after clicking Start.
-- Confirm the duration timer (`gamePlay.startTime`) resets after clicking Start, by checking the elapsed-time shown at game-finish reflects time since the most recent Start, not an earlier session.
+- Confirm the elapsed-time origin (`gamePlay.startTime`) resets after clicking Start, by checking the elapsed-time shown at game-finish reflects time since the most recent Start, not an earlier session.
 - Confirm no console errors appear during any of the above steps.
 
 ## Depends on

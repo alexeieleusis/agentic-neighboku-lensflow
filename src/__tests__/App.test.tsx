@@ -96,7 +96,7 @@ function buildAppStateWithHintOn(game: Game = buildFreshGame()): AppState {
 /**
  * A finished-solvable shell state with the game clock back-dated 2h 2m 15s, so
  * the success alert's elapsed string is the deterministic `2h 2m 15s` (the
- * duration timer's "now" at mount minus `gamePlay.startTime`).
+ * `Date.now()` at the tray-emptying capture minus `gamePlay.startTime`).
  */
 function buildFinishedSolvableState(): AppState {
   return {
@@ -365,16 +365,17 @@ describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
     expect(screen.getByText("Game finished")).toBeTruthy();
     // §5.13: the success alert is a success-severity Alert (MUI v9 roots both
     // severities at `role="alert"`; the severity is the `MuiAlert-colorSuccess`
-    // class) carrying the §5.13 elapsed string — the duration timer's "now"
-    // minus `gamePlay.startTime`, which the fixture back-dated exactly 2h 2m
-    // 15s. Exactly one alert is present, and it is the success one.
+    // class) carrying the §5.13 elapsed string — the `Date.now()` at the
+    // tray-emptying capture minus `gamePlay.startTime`, which the fixture
+    // back-dated exactly 2h 2m 15s. Exactly one alert is present, and it is the
+    // success one.
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
     expect(alerts[0].className).toContain("MuiAlert-colorSuccess");
     expect(alerts[0].textContent).toContain("Solved in 2h 2m 15s");
   });
 
-  it("freezes the elapsed string at the tray-emptying moment — the dialog's timer does not keep running", () => {
+  it("freezes the elapsed string at the tray-emptying moment — the string does not keep advancing", () => {
     vi.useFakeTimers();
     try {
       // The fixture back-dates `gamePlay.startTime` exactly 2h 2m 15s from the
@@ -386,9 +387,9 @@ describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
         screen.getAllByRole("alert")[0].textContent,
       ).toContain("Solved in 2h 2m 15s");
 
-      // Tick the shell's 1-second duration timer while the Dialog is open: a
-      // live `now − startTime` read would advance the string to
-      // `2h 2m 20s`. The §5.13 string must stay static at the captured value.
+      // Advance the (mocked) clock 5s while the Dialog is open: a live
+      // `now − startTime` read would advance the string to `2h 2m 20s`. The
+      // §5.13 string must stay static at the captured value.
       act(() => {
         vi.advanceTimersByTime(5000);
       });

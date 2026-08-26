@@ -70,8 +70,8 @@ export interface AppPreferences {
  * epoch milliseconds. The shell owns it (the move engine stays time-free, §7.4): it
  * is stamped once at shell init (`main.tsx`) and — once the New Game panel ships
  * (Phase 17) — reset when a fresh game starts. The finished-game Dialog's elapsed
- * string (§5.13) is the difference between "now" (the shell's duration timer,
- * Phase 15) and this value.
+ * string (§5.13) is the difference between `Date.now()` at the tray-emptying
+ * moment (Phase 15's one-time capture in the state tier) and this value.
  */
 export interface GamePlayState {
   readonly startTime: number;
@@ -85,7 +85,7 @@ export interface AppState {
   /** A real, freshly-unfolded Phase 3 `Game` produced by `buildBoard` + `unfoldGame`. */
   readonly game: Game;
   readonly preferences: AppPreferences;
-  /** §5.13/§5.9: when the current game started (epoch ms); the duration timer's origin. */
+  /** §5.13/§5.9: when the current game started (epoch ms); the elapsed duration's origin. */
   readonly gamePlay: GamePlayState;
   /**
    * §5.12 invalid-move feedback (Phase 11): closed by default; the drag-end path opens
@@ -169,8 +169,8 @@ export interface AppViewModel {
    * `{h}h {m}m {s}s` (e.g. `0h 2m 15s`) — the difference between the tray-emptying
    * moment and `gamePlay.startTime`, captured once at that moment (Phase 15's
    * `useAppState` tier's `finishedElapsedMs`) and held static for the Dialog's
-   * whole open lifetime — NOT a live read of the shell's duration timer, which
-   * would keep the string advancing after the game has ended. Rendered only by
+   * whole open lifetime — NOT a live read of a running clock, which would keep
+   * the string advancing after the game has ended. Rendered only by
    * the success alert.
    */
   readonly dialogElapsed: string;

@@ -4,9 +4,6 @@ import type { AppState } from "./App.types.ts";
 import { stateIsValid } from "./game/gameBuilder.ts";
 import { isTrayEmpty } from "./useAppDomain.ts";
 
-/** How often the shell's duration timer advances its "now" (Phase 15, §5.13). */
-const TICK_MS = 1000;
-
 /**
  * The internal (state-tier) shape `useAppState` returns to the orchestrator
  * (`useAppViewModel`) and the action tier (`useAppActions`) — includes the
@@ -26,14 +23,6 @@ const TICK_MS = 1000;
  */
 // eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface AppInternalState {
-  /**
-   * The duration timer's "now" (epoch ms), advanced every `TICK_MS` by the
-   * shell's own interval. Ticks for the whole shell lifetime, including across a
-   * completed game — inert there: the finished-game Dialog's elapsed string is
-   * `finishedElapsedMs` (frozen at the tray-emptying moment), not a live
-   * `now − gamePlay.startTime` difference.
-   */
-  readonly now: number;
   /** §3.6: whether the tray is empty — the finished-game Dialog's open trigger. */
   readonly trayEmpty: boolean;
   /**
@@ -64,12 +53,13 @@ export interface AppInternalState {
  * pure `useAppDomain` functions. Two pieces of local state live here and nowhere
  * else (never ad hoc in `App.tsx`):
  *
- *   - the duration timer: a ticking "now" on a 1-second interval — the
- *     §5.13 elapsed string is the difference between the tray-emptying
- *     moment and `gamePlay.startTime` (the timer's origin, shell-owned since
- *     no New Game reset exists yet — Phase 17 will add it), captured once at
- *     the emptying moment and held static for the Dialog's open lifetime
- *     (`finishedElapsedMs`), never read live off the ticking "now";
+ *   - the finished-game Dialog's elapsed capture: `finishedElapsedMs`, the
+ *     difference between the tray-emptying moment and `gamePlay.startTime`
+ *     (the clock's origin, shell-owned since no New Game reset exists yet —
+ *     Phase 17 will add it), read once off `Date.now()` at the emptying
+ *     moment and held static for the Dialog's open lifetime. No ticking "now"
+ *     is kept: the §5.13 string is a one-time capture whose only reader
+ *     (`dialogElapsed`) never needs a live value;
  *   - the finished-game Dialog's dismissal: local UI state, because the
  *     dismissed-but-tray-still-empty condition is the player's recovery window
  *     (§5.13) and is not shell-wide state worth persisting on `AppState`.
@@ -82,16 +72,6 @@ export function useAppState(
   props: Readonly<TelescopedProps<AppState>>,
 ): AppInternalState {
   const { game, gamePlay } = props.state;
-
-  // The duration timer: ticks "now" every second for the shell's whole lifetime.
-  // `setInterval` (not a recursive `setTimeout`) keeps the period steady; the
-  // cleanup clears it on unmount, and StrictMode's double-invoke just re-arms
-  // the same interval.
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(id);
-  }, []);
 
   // The finished-game Dialog's dismissal: reset whenever the tray refills (the
   // only refill path is Undo, §5.7), so dismissal never outlives the empty tray
@@ -119,7 +99,6 @@ export function useAppState(
   }
 
   return {
-    now,
     trayEmpty,
     solvable: stateIsValid(game),
     dialogDismissed,

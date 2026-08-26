@@ -23,17 +23,17 @@ import {
  *   - the pure derivations (`useAppDomain.ts` — slice builders, the drag-drop /
  *     drag-hint state machines, the Phase 15 §5.13 finished/success/elapsed
  *     derivations),
- *   - the state tier (`useAppState.ts` — the duration timer's ticking "now" and
- *     the finished-game Dialog's local dismissal),
+ *   - the state tier (`useAppState.ts` — the finished-game Dialog's one-time
+ *     elapsed capture and its local dismissal),
  *   - the action tier (`useAppActions.ts` — the drag-lifecycle monitor and the
  *     two overlay dismissals),
  *
  * and stays wiring-only: it owns no business logic of its own. The Phase 15 §5.13
    * derivations land on the returned view model as `dialogOpen` (tray empty AND not
    * dismissed), `dialogSuccess` (Phase 3's `stateIsValid` — the move engine's existing
-   * `gameIsSolvable` result, consumed, never recomputed) and `dialogElapsed`
-   * (`formatElapsed` of the state tier's `finishedElapsedMs` — frozen at the
-   * tray-emptying moment, never a live read of the ticking "now"), and the top-bar
+    * `gameIsSolvable` result, consumed, never recomputed) and `dialogElapsed`
+    * (`formatElapsed` of the state tier's `finishedElapsedMs` — frozen at the
+    * tray-emptying moment, never a live read of a running clock), and the top-bar
    * solvability indicator
  * moves out of the `topBar` view into its own `solvability` slice (the App →
  * `SolvabilityIcon` magnification, Phase 15) so the indicator component renders it
@@ -45,7 +45,7 @@ export function useAppViewModel(
   const { game, preferences, invalidMoveSnackbarOpen } = props.state;
 
   // Phase 15's state tier, created ONCE here and shared with the action tier:
-  // the dismissal flag and the timer's "now" each have a single source of
+  // the dismissal flag and the elapsed capture each have a single source of
   // truth, and the orchestrator strips the setter before the public view model
   // reaches RenderApp (docs/CONVENTIONS.md split-hook rule).
   const internal = useAppState(props);
@@ -120,9 +120,9 @@ export function useAppViewModel(
   // the Dialog in the same render). `dialogElapsed` is the §5.13 `{h}h {m}m {s}s`
   // string: `formatElapsed` of the state tier's `finishedElapsedMs` — the elapsed
   // duration captured (and frozen) at the moment the tray empties, so the success
-  // alert's counter does NOT keep advancing while the Dialog is open (the duration
-  // timer's "now" keeps ticking for the shell's lifetime, but this value is a
-  // one-time capture, not a live read of it). Rendered by the success alert only.
+  // alert's counter does NOT keep advancing while the Dialog is open: there is no
+  // ticking clock to read — the value is a one-time `Date.now()` capture, not a
+  // live projection. Rendered by the success alert only.
   return {
     board,
     tray,

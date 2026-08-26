@@ -43,23 +43,29 @@ Excerpt, `docs/neighboku-ai-rebuild/requirements.md` §5.13 (Solvability indicat
 including all three simultaneous conditions from §3.6 above. This phase does not
 reimplement or duplicate that logic — it only **consumes** the existing `gameIsSolvable`
 result (and `availablePieces.size`) from the current `Game` state to drive UI: the top-bar
-`SolvabilityIcon`, the finished-game `Dialog`, and a duration timer measured from
-`gamePlay.startTime` (established by Phase 4's app shell / Phase 17's New Game panel reset
-of `startTime`, whichever already exists at this point in the phase sequence) to "now."
+`SolvabilityIcon`, the finished-game `Dialog`, and the Dialog's elapsed-time capture:
+`Date.now() − gamePlay.startTime`, read once at the moment the tray empties and held static
+for the Dialog's open lifetime (the clock's origin, `gamePlay.startTime`, is established by
+Phase 4's app shell / Phase 17's New Game panel reset of `startTime`, whichever already
+exists at this point in the phase sequence). No ticking duration timer: the only reader of
+the value (the success alert's string) never needs a live clock, and a per-second tick
+would re-render the whole shell for nothing.
 
 `App`'s own view-model logic is re-evaluated against `docs/CONVENTIONS.md`'s scale rule as
 part of this phase: prior phases (11, 14) kept `App`'s hook(s) in whatever form they left
 them in (a flat `useAppViewModel.ts`, per Phase 11's `src/useApp*.ts` scope wildcard, is an
 acceptable starting point). This phase adds real component-local business rules to
 `App` — deriving the finished/not-finished Dialog state from `availablePieces.size`,
-formatting the `{h}h {m}m {s}s` elapsed-time string from `gamePlay.startTime`, and running a
-duration timer — which are exactly the kind of derived-value/business-rule logic
+formatting the `{h}h {m}m {s}s` elapsed-time string from `gamePlay.startTime`, and capturing
+the elapsed duration at the tray-emptying moment — which are exactly the kind of
+derived-value/business-rule logic
 `docs/CONVENTIONS.md`'s scale rule assigns to a non-trivial component. If `App`'s hooks are
 still a single flat `useAppViewModel.ts` when this phase starts, split them now into
 `useAppDomain.ts` (pure functions: elapsed-time formatting, finished/success/failure
 derivation from `availablePieces.size` and `gameIsSolvable` — no React, no telescope
-imports), `useAppState.ts` (the timer's local ticking state plus telescope-derived values
-via the domain functions), `useAppActions.ts` (any new event-handler closures this phase
+imports), `useAppState.ts` (the finished-game Dialog's one-time elapsed capture plus
+telescope-derived values via the domain functions), `useAppActions.ts` (any new
+event-handler closures this phase
 needs, e.g. closing the finished Dialog), and `useAppViewModel.ts` as the wiring-only
 orchestrator — per §7.2.1's scale rule and `docs/CONVENTIONS.md`'s file-layout section. If
 `App`'s hooks are already split by an earlier phase, extend the existing
@@ -81,10 +87,10 @@ inside `SolvabilityIcon`.
 - The top-bar `SolvabilityIcon` renders the happy-face icon when `hintGameIsSolvable` is `true` and `gameIsSolvable` is `true`, the sad-face icon when `hintGameIsSolvable` is `true` and `gameIsSolvable` is `false`, and renders nothing at all when `hintGameIsSolvable` is `false`, regardless of `gameIsSolvable`'s value.
 - `SolvabilityIcon` occupies the solvability-icon slot in the top bar's observed order (drag-fit-hint icon, Preferences button, New Game button, Undo button, solvability icon, Help button — §5.1), consistent with Phase 4's shell layout.
 - The finished-game `Dialog` opens exactly when `availablePieces.size === 0` (tray empty) and stays closed at every other tray state, including immediately after a fresh New Game start.
-- **Success case** — when the `Dialog` opens with `gameIsSolvable` `true`, it shows a success-severity alert containing an elapsed-time string formatted exactly `{h}h {m}m {s}s` (e.g. `0h 2m 15s`), computed as the difference between "now" (dialog-open time) and `gamePlay.startTime`.
+- **Success case** — when the `Dialog` opens with `gameIsSolvable` `true`, it shows a success-severity alert containing an elapsed-time string formatted exactly `{h}h {m}m {s}s` (e.g. `0h 2m 15s`), captured as `Date.now() − gamePlay.startTime` at the moment the tray empties and held static for the Dialog's open lifetime (not a live clock: the string must not keep advancing while the Dialog is open).
 - **Failure case** — when the `Dialog` opens with `gameIsSolvable` `false`, it shows a failure-severity alert only, with no elapsed-time string.
 - No forced-undo mechanic is implemented anywhere in this phase — the sad-face icon and the failure alert are informational only; the player remains free to continue placing or undoing moves as normal via existing controls (Undo stays driven solely by Phase 10's `placedCells`-empty guard, untouched by this phase).
-- A duration timer exists that measures elapsed time from `gamePlay.startTime` to "now," used to compute the Dialog's elapsed-time string at the moment the tray empties; the timer's own ticking/local state lives in `useAppState.ts` (or an equivalent state-tier file if `App`'s hooks were already split by an earlier phase), not as ad hoc `useState` directly inside `App.tsx`.
+- The Dialog's elapsed-time string is computed from a one-time capture of `Date.now() − gamePlay.startTime` taken at the exact moment the tray empties, frozen for the Dialog's open lifetime (there is no ticking duration timer: the string's only reader — the success alert — never needs a live clock, and a per-second tick would re-render the whole shell while feeding nothing to the rendered output); the capture's local state lives in `useAppState.ts` (or an equivalent state-tier file if `App`'s hooks were already split by an earlier phase), not as ad hoc `useState` directly inside `App.tsx`.
 - `App`'s hook(s) are split into `useAppDomain.ts` / `useAppState.ts` / `useAppActions.ts` / `useAppViewModel.ts` per `docs/CONVENTIONS.md`'s non-trivial scale rule, with the elapsed-time formatting and finished/success/failure derivation living in `useAppDomain.ts` as pure functions (no React, no telescope imports) — a flat, unsplit `useAppViewModel.ts` surviving past this phase (given the business-rule complexity this phase adds) is a boundary violation a reviewer should flag.
 - `App` still follows the `state,telescope → useAppViewModel → RenderApp` fractal pattern (`docs/fractal_component.md`, `requirements.md` §7.2) after the split, and any parent→child state flow to `SolvabilityIcon` (or the Dialog) uses a magnified telescope (`telescope.magnify(new Lens(get, set))`) — not prop-drilled callbacks.
 - `SolvabilityIcon.types.ts` holds only its props type and view-model type — no hook logic — per `docs/CONVENTIONS.md`'s file-layout convention.
@@ -99,7 +105,7 @@ inside `SolvabilityIcon`.
 - Confirm the top-bar solvability icon switches to the sad-face state once the board becomes unsolvable.
 - Continue placing the remaining tray pieces (order doesn't matter once already unsolvable) until the tray empties; confirm the Dialog appears showing a failure alert only, with no elapsed-time string.
 - With the game still in an unsolvable-but-not-yet-finished state, toggle `hintGameIsSolvable` off (via the same temporary-preference workaround, since the real Preferences panel toggle doesn't ship until Phase 16) and confirm the solvability icon disappears entirely from the top bar; toggle it back on and confirm the correct happy/sad-face state reappears.
-- Confirm the browser devtools console shows no errors throughout, including no errors from the duration timer continuing to run across a completed game.
+- Confirm the browser devtools console shows no errors throughout, and that the success alert's elapsed string stays static (frozen at the tray-emptying capture) for the whole time the finished-game Dialog remains open.
 - Revert whichever `preventInvalidMoves`/`hintGameIsSolvable` workaround was used once the manual test is complete.
 
 ## Depends on

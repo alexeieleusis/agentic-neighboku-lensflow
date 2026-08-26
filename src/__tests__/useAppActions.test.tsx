@@ -55,7 +55,6 @@ function buildInternal(
   overrides: Partial<AppInternalState> = {},
 ): AppInternalState {
   return {
-    now: Date.now(),
     trayEmpty: false,
     finishedElapsedMs: null,
     solvable: true,
