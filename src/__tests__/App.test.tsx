@@ -15,13 +15,8 @@ import { ThemeProvider } from "@mui/material/styles";
 import { App } from "../App";
 import type { AppState, AppPreferences } from "../App.types";
 import { buildBoard } from "../game/boardBuilder";
-import { createPiece } from "../game/entities";
-import {
-  cellFromIndex,
-  placePiece,
-  unfoldGame,
-  type Game,
-} from "../game/gameBuilder";
+import { unfoldGame, type Game } from "../game/gameBuilder";
+import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 import { darkTheme } from "../theme";
 
 // §5.6/§7.6 sensor wiring: record the props the shell hands its `DndContext`, with the
@@ -99,67 +94,13 @@ function buildAppStateWithHintOn(game: Game = buildFreshGame()): AppState {
 }
 
 /**
- * A real finished-and-solvable position: the fixture's game played to a natural
- * end through the shared move-engine path (`placePiece` — every recorded move is
- * `isValid: true` by construction, `preventInvalidMoves` is on). The seed-42
- * fixture always completes this way (7 moves), so this is a real, not
- * hand-authored, finished game.
- */
-function buildFinishedSolvableGame(): Game {
-  let current = buildFreshGame();
-  while (current.availablePieces.size > 0) {
-    let next: Game | null = null;
-    for (const [piece, cells] of current.pieceToFitCells) {
-      for (const idx of cells) {
-        try {
-          next = placePiece(piece, cellFromIndex(current.size, idx), current);
-          break;
-        } catch {
-          /* the cell may no longer fit after a sibling placement; keep looking */
-        }
-      }
-      if (next !== null) break;
-    }
-    if (next === null)
-      throw new Error(
-        "fixture: the seed-42 game stalled mid-play (impossible)",
-      );
-    current = next;
-  }
-  return current;
-}
-
-/**
- * A finished position that is NOT solvable: the board fully re-filled (no blanks,
- * empty tray — §3.6's conditions 2–4 hold vacuously) with one recorded move
- * flagged `isValid: false` — condition 1 fails, and it fails alone.
- */
-function buildUnsolvableFinishedGame(): Game {
-  return {
-    size: 4,
-    board: buildBoard(4, 3, 3, 42),
-    availablePieces: new Map(),
-    placedCells: Object.freeze([
-      Object.freeze({
-        pieceValue: createPiece([0, 0, 0], 3, 3),
-        cell: [0, 0] as const,
-        isValid: false,
-      }),
-    ]),
-    pieceToFitCells: new Map(),
-    cellToFitPieces: new Map(),
-    preferences: { preventInvalidMoves: true },
-  };
-}
-
-/**
  * A finished-solvable shell state with the game clock back-dated 2h 2m 15s, so
  * the success alert's elapsed string is the deterministic `2h 2m 15s` (the
  * duration timer's "now" at mount minus `gamePlay.startTime`).
  */
 function buildFinishedSolvableState(): AppState {
   return {
-    ...buildAppStateWithHintOn(buildFinishedSolvableGame()),
+    ...buildAppStateWithHintOn(playToCompletion(buildFreshGame())),
     gamePlay: { startTime: Date.now() - 7_335_000 },
   };
 }

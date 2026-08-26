@@ -3,7 +3,7 @@ import type { AppState } from "../App.types";
 import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
 import { trayPieceDraggableId } from "../components/DraggablePiece/useDraggablePieceDomain";
 import { buildPiecePool, buildBoard } from "../game/boardBuilder";
-import { createPiece, type Piece } from "../game/entities";
+import type { Piece } from "../game/entities";
 import {
   cellFromIndex,
   cellIndex,
@@ -24,6 +24,7 @@ import {
   resolveDragHint,
   resolveTrayPiece,
 } from "../useAppDomain";
+import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 
 /**
  * A real, freshly-unfolded game (never a hand-authored fixture, per the shell's own
@@ -449,63 +450,6 @@ describe("resolveTrayPiece (§8.7 reference resolution)", () => {
 /* -------------------------------------------------------------------------- */
 /* Phase 15 — §3.6/§5.13 game-finished & solvability-indicator derivations      */
 /* -------------------------------------------------------------------------- */
-
-/**
- * A real finished, solvable position: the fixture's game played to a natural end
- * (every tray piece placed through the shared move-engine path, so every recorded
- * move is `isValid: true` by construction — `preventInvalidMoves` is on, so any
- * illegal placement would have thrown instead of being recorded). The seed-42
- * fixture unfolds into a position this greedy cache walk always completes (7
- * moves, verified empirically — a real, not hand-authored, finished game).
- */
-function playToCompletion(game: Game): Game {
-  let current = game;
-  while (current.availablePieces.size > 0) {
-    let next: Game | null = null;
-    for (const [piece, cells] of current.pieceToFitCells) {
-      for (const idx of cells) {
-        try {
-          next = placePiece(piece, cellFromIndex(current.size, idx), current);
-          break;
-        } catch {
-          /* the cell may no longer fit after a sibling placement; keep looking */
-        }
-      }
-      if (next !== null) break;
-    }
-    if (next === null)
-      throw new Error(
-        "fixture: the seed-42 game stalled mid-play (impossible)",
-      );
-    current = next;
-  }
-  return current;
-}
-
-/**
- * A finished position that is NOT solvable: the board fully re-filled (no blanks,
- * empty tray — so §3.6's conditions 2–4 all hold vacuously) with one recorded
- * move flagged `isValid: false` — condition 1 fails, and it fails alone, so this
- * isolates the "every placed move is valid" clause of `gameIsSolvable`.
- */
-function buildUnsolvableFinishedGame(): Game {
-  const board = buildBoard(4, 3, 3, GAME_SEED);
-  return {
-    size: 4,
-    board,
-    availablePieces: new Map(),
-    placedCells: Object.freeze([
-      Object.freeze({
-        pieceValue: createPiece([0, 0, 0], 3, 3),
-        cell: [0, 0] as const,
-        isValid: false,
-      }),
-    ]),
-    pieceToFitCells: new Map(),
-    cellToFitPieces: new Map(),
-    preferences: { preventInvalidMoves: true },
-  };
-}
 
 describe("isTrayEmpty (§3.6 / Phase 15 finished-game trigger)", () => {
   it("a freshly-unfolded game is not finished (the tray holds pieces)", () => {
