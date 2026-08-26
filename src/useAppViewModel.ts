@@ -1,30 +1,55 @@
 import { useMemo } from "react";
 import { Lens } from "telescopejs";
-import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
+import type { AppState, AppViewModel } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
+import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
-import { stateIsValid } from "./game/gameBuilder.ts";
+import { useAppActions } from "./useAppActions.ts";
+import { useAppState } from "./useAppState.ts";
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  buildSolvabilityIconState,
+  formatElapsed,
 } from "./useAppDomain.ts";
 
 /**
  * The shell's view-model hook (requirements §7.2): the shell's orchestrator tier
- * (Phase 8's hook split, §7.2.1). Composes the pure slice derivations
- * (`useAppDomain.ts`) with the §7.2 magnified-telescope parent→child flow
- * (App → `BoardDisplay`, App → `AvailablePiecesTray`) and stays wiring-only. There is
- * no local non-telescope UI state in the shell, so no `useAppState` tier; the shell's
- * user actions (drag-end, §5.6; the Phase 11 invalid-move Snackbar dismissal, §5.12)
- * live in `useAppActions.ts`.
+ * (Phase 8's hook split, §7.2.1; re-evaluated at Phase 15 against docs/CONVENTIONS.md's
+ * non-trivial scale rule). Composes:
+ *
+ *   - the pure derivations (`useAppDomain.ts` — slice builders, the drag-drop /
+ *     drag-hint state machines, the Phase 15 §5.13 finished/success/elapsed
+ *     derivations),
+ *   - the state tier (`useAppState.ts` — the duration timer's ticking "now" and
+ *     the finished-game Dialog's local dismissal),
+ *   - the action tier (`useAppActions.ts` — the drag-lifecycle monitor and the
+ *     two overlay dismissals),
+ *
+ * and stays wiring-only: it owns no business logic of its own. The Phase 15 §5.13
+   * derivations land on the returned view model as `dialogOpen` (tray empty AND not
+   * dismissed), `dialogSuccess` (Phase 3's `stateIsValid` — the move engine's existing
+   * `gameIsSolvable` result, consumed, never recomputed) and `dialogElapsed`
+   * (`formatElapsed` of the state tier's `finishedElapsedMs` — frozen at the
+   * tray-emptying moment, never a live read of the ticking "now"), and the top-bar
+   * solvability indicator
+ * moves out of the `topBar` view into its own `solvability` slice (the App →
+ * `SolvabilityIcon` magnification, Phase 15) so the indicator component renders it
+ * itself instead of the shell inlining it.
  */
 export function useAppViewModel(
   props: Readonly<TelescopedProps<AppState>>,
 ): AppViewModel {
-  const { game, preferences, invalidMoveSnackbarOpen, gameFinishedDialogOpen } =
-    props.state;
+  const { game, preferences, invalidMoveSnackbarOpen } = props.state;
+
+  // Phase 15's state tier, created ONCE here and shared with the action tier:
+  // the dismissal flag and the timer's "now" each have a single source of
+  // truth, and the orchestrator strips the setter before the public view model
+  // reaches RenderApp (docs/CONVENTIONS.md split-hook rule).
+  const internal = useAppState(props);
+  const actions = useAppActions(props, internal);
 
   // App → BoardDisplay (§7.2): a read-only magnification of the shell telescope onto
   // the board slice. The board is a derived view of `game.board` (plus, since Phase
@@ -69,24 +94,46 @@ export function useAppViewModel(
     [props.state.dragHint, props.telescope],
   );
 
-  const topBar = useMemo<TopBarView>(
+  // App → SolvabilityIcon (§7.2, Phase 15): the dedicated magnification onto the
+  // §5.13 solvability-indicator slice — the §4.2 `hints.gameIsSolvable` preference
+  // plus Phase 3's `stateIsValid` result on `game`, both derived upstream in the
+  // shell (via `buildSolvabilityIconState`) so the indicator component itself only
+  // maps the two booleans to its icon and never recomputes solvability. The memo
+  // recomputes exactly when one of its two inputs moves (a placement/undo rebuild
+  // `game`; the preference moves with the Phase 16 preferences update), the same
+  // way the board/tray memos do.
+  const hintGameIsSolvable = preferences.hints.gameIsSolvable;
+  const solvability = useMemo<TelescopedProps<SolvabilityIconState>>(
     () => ({
-      undoEnabled: game.placedCells.length > 0,
-      solvability: {
-        visible: preferences.hints.gameIsSolvable,
-        solvable: stateIsValid(game),
-      },
+      state: buildSolvabilityIconState(game, hintGameIsSolvable),
+      telescope: props.telescope.magnify(SOLVABILITY_ICON_LENS),
     }),
-    [game, preferences.hints.gameIsSolvable],
+    [game, hintGameIsSolvable, props.telescope],
   );
 
+  // §5.13 (Phase 15): the finished-game Dialog. `dialogOpen` is the derivation the
+  // §3.6 empty-tray transition drives — open exactly while the tray is empty and the
+  // player has not dismissed it; closed at every other tray state, including a fresh
+  // New Game start (whose tray always holds pieces). `dialogSuccess` is Phase 3's
+  // solvability result at that moment (stable for the Dialog's whole open lifetime:
+  // with the tray empty no placement is possible, and Undo — the one refill — closes
+  // the Dialog in the same render). `dialogElapsed` is the §5.13 `{h}h {m}m {s}s`
+  // string: `formatElapsed` of the state tier's `finishedElapsedMs` — the elapsed
+  // duration captured (and frozen) at the moment the tray empties, so the success
+  // alert's counter does NOT keep advancing while the Dialog is open (the duration
+  // timer's "now" keeps ticking for the shell's lifetime, but this value is a
+  // one-time capture, not a live read of it). Rendered by the success alert only.
   return {
     board,
     tray,
     dragHint,
-    topBar,
+    solvability,
     snackbarOpen: invalidMoveSnackbarOpen,
-    dialogOpen: gameFinishedDialogOpen,
+    onInvalidMoveSnackbarClose: actions.onInvalidMoveSnackbarClose,
+    dialogOpen: internal.trayEmpty && !internal.dialogDismissed,
+    dialogSuccess: internal.solvable,
+    dialogElapsed: formatElapsed(internal.finishedElapsedMs ?? 0),
+    onGameFinishedDialogClose: actions.onGameFinishedDialogClose,
   };
 }
 
@@ -138,4 +185,22 @@ export const DRAG_HINT_LENS = new Lens<AppState, DragHint>(
   (state) => state.dragHint,
   (hint, state) =>
     hint === state.dragHint ? state : { ...state, dragHint: hint },
+);
+
+/**
+ * The dedicated App → `SolvabilityIcon` magnification (§5.13/§7.2, Phase 15): the
+ * solvability-indicator slice — `{ visible, solvable }` — as its own lens onto its own
+ * shell-derived values, so the indicator renders through its own magnified telescope
+ * like every other child slice, never through raw prop-drilled booleans. Both values
+ * are derived (preference + Phase 3's `stateIsValid`), so the setter is the identity:
+ * nothing writes through this slice — the values move only when `game` or the
+ * preferences do, and the lens getter re-derives them on the next magnified read.
+ */
+export const SOLVABILITY_ICON_LENS = new Lens<AppState, SolvabilityIconState>(
+  (state) =>
+    buildSolvabilityIconState(
+      state.game,
+      state.preferences.hints.gameIsSolvable,
+    ),
+  (_iconState, state) => state,
 );

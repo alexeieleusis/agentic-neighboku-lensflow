@@ -8,9 +8,10 @@ import type { BoardCell } from "./components/CellDisplay/CellDisplay.types.ts";
 import { cellFromDroppableId } from "./components/CellDisplay/useCellDisplayDomain.ts";
 import { pieceFromDraggableId } from "./components/DraggablePiece/useDraggablePieceDomain.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
+import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import type { Piece } from "./game/entities";
 import { isSamePiece } from "./game/entities";
-import { cellIndex, placePiece } from "./game/gameBuilder.ts";
+import { cellIndex, placePiece, stateIsValid } from "./game/gameBuilder.ts";
 import type { Game } from "./game/gameBuilder.ts";
 
 /**
@@ -218,6 +219,63 @@ function dragHintOverTarget(
 export function closeInvalidMoveSnackbar(state: AppState): AppState {
   if (!state.invalidMoveSnackbarOpen) return state;
   return { ...state, invalidMoveSnackbarOpen: false };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 15 — §3.6/§5.13 game-finished & solvability-indicator derivations     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * §3.6 / Phase 15: the game is finished exactly when the tray is empty. This reads
+ * `availablePieces.size` — the move engine drops a tray entry the moment its count
+ * reaches zero (§3.5 step 3), so a distinct-value count of zero is the same as a
+ * remaining-unit count of zero: no piece value can remain to be placed. This is the
+ * finished-ness derivation the shell's finished-game Dialog is built on; the Dialog
+ * opens on this transition and stays closed at every other tray state, including a
+ * fresh New Game (whose tray always holds pieces, §3.4's unfolding always blanks at
+ * least one cell of a real board).
+ */
+export function isTrayEmpty(game: Game): boolean {
+  return game.availablePieces.size === 0;
+}
+
+/**
+ * §5.13 / Phase 15: the finished-game success alert's elapsed-time string, formatted
+ * exactly `{h}h {m}m {s}s` (e.g. `0h 2m 15s`) — whole hours/minutes/seconds, no
+ * padding, truncated (never rounded up) to the whole second. `totalMs` is the
+ * duration in milliseconds; a negative input (clock skew: "now" ahead of a
+ * back-dated `startTime` is the only realistic case, and it cannot produce a
+ * negative elapsed time) clamps to zero rather than formatting a minus sign.
+ */
+export function formatElapsed(totalMs: number): string {
+  const totalSeconds = Math.floor(Math.max(0, totalMs) / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h}h ${m}m ${s}s`;
+}
+
+/**
+ * §5.13 / Phase 15: the App → `SolvabilityIcon` slice — the two booleans the
+ * top-bar indicator renders from, both derived upstream in the shell: the §4.2
+ * `hints.gameIsSolvable` preference (visibility) and Phase 3's `stateIsValid`
+ * result on `game` (the §3.6 solvability — this function consumes the move
+ * engine's existing result, it does not recompute or duplicate any of its
+ * conditions). The non-trivial part of §5.13's indicator lives here, in the
+ * shell; `SolvabilityIcon` itself only maps these two booleans to its icon.
+ *
+ * Focused arguments, like the other slice builders (`buildBoardDisplayState`,
+ * `buildAvailablePiecesTrayState`): the two inputs the slice actually reads,
+ * not the whole `AppState`.
+ */
+export function buildSolvabilityIconState(
+  game: Game,
+  hintGameIsSolvable: boolean,
+): SolvabilityIconState {
+  return {
+    visible: hintGameIsSolvable,
+    solvable: stateIsValid(game),
+  };
 }
 
 /**

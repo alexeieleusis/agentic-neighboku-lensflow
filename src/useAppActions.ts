@@ -3,6 +3,7 @@ import { useDndMonitor } from "@dnd-kit/core";
 import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import type { AppState } from "./App.types.ts";
+import type { AppInternalState } from "./useAppState.ts";
 import type { DragLifecycleEvent } from "./useAppDomain.ts";
 import {
   closeInvalidMoveSnackbar,
@@ -39,6 +40,18 @@ export interface AppActions {
    * source fired, only that dismissal happened.
    */
   readonly onInvalidMoveSnackbarClose: () => void;
+  /**
+   * §5.13 (Phase 15): the game-finished Dialog's dismissal. Zero-argument on
+   * purpose: MUI invokes a Dialog's `onClose` as `(event, reason)` on both its
+   * Escape-key and backdrop-click dismissal, and the committed next state does
+   * not depend on which source fired, only that dismissal happened. Unlike
+   * every other shell action, this one does not commit through the telescope:
+   * the dismissal is the shell's local UI state (Phase 15's `useAppState`
+   * tier — §7.2.1's "dialog open/closed"), not `AppState`, so the action just
+   * flips that flag. The Dialog itself stays a pure derivation: open exactly
+   * while the tray is empty and not dismissed.
+   */
+  readonly onGameFinishedDialogClose: () => void;
 }
 
 /**
@@ -69,9 +82,22 @@ export interface AppActions {
  * independent magnification of `DRAG_HINT_LENS`, so the write lands on the hint slice
  * only, through the live shell state, without touching the board/tray slices or the
  * general telescope.
+ *
+ * Phase 15 adds the game-finished Dialog's dismissal (§5.13, `onGameFinishedDialogClose`):
+ * MUI fires it on Escape / backdrop click; it flips the shell's local dismissal flag
+ * (the `useAppState` tier's `dialogDismissed`) rather than committing through the
+ * telescope, because the dismissal is component-local UI state, not `AppState` — the
+ * Dialog's open state stays a pure derivation (tray empty AND not dismissed).
+ *
+ * This hook therefore takes the state tier's internal shape (`AppInternalState`)
+ * alongside the telescoped props: the orchestrator (`useAppViewModel`) creates it
+ * once and passes it down, so the dismissal flag has a single source of truth shared
+ * by the state tier (which derives `dialogOpen` from it) and this action (which sets
+ * it).
  */
 export function useAppActions(
   props: Readonly<TelescopedProps<AppState>>,
+  internal: Readonly<AppInternalState>,
 ): AppActions {
   const { state, telescope } = props;
 
@@ -144,6 +170,14 @@ export function useAppActions(
     telescope.update(closeInvalidMoveSnackbar(state));
   }, [state, telescope]);
 
+  // §5.13 (Phase 15): the finished-game Dialog's dismissal. The only commit here is
+  // the local flag itself (a `true` → `true` re-set is a no-op re-render-free
+  // update), so no domain curry is involved — the open/closed derivation lives in
+  // the state tier, not in this closure.
+  const onGameFinishedDialogClose = useCallback(() => {
+    internal.setDialogDismissed(true);
+  }, [internal]);
+
   useDndMonitor({ onDragStart, onDragOver, onDragEnd, onDragCancel });
 
   return {
@@ -152,5 +186,6 @@ export function useAppActions(
     onDragEnd,
     onDragCancel,
     onInvalidMoveSnackbarClose,
+    onGameFinishedDialogClose,
   };
 }

@@ -3,10 +3,12 @@ import type { AppState } from "../App.types";
 import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
 import { trayPieceDraggableId } from "../components/DraggablePiece/useDraggablePieceDomain";
 import { buildPiecePool, buildBoard } from "../game/boardBuilder";
-import type { Piece } from "../game/entities";
+import { createPiece, type Piece } from "../game/entities";
 import {
   cellFromIndex,
   cellIndex,
+  placePiece,
+  stateIsValid,
   unfoldGame,
   type Cell,
   type Game,
@@ -14,7 +16,10 @@ import {
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  buildSolvabilityIconState,
   closeInvalidMoveSnackbar,
+  formatElapsed,
+  isTrayEmpty,
   resolveDragDrop,
   resolveDragHint,
   resolveTrayPiece,
@@ -48,8 +53,10 @@ function buildState(game: Game): AppState {
       preventInvalidMoves: game.preferences.preventInvalidMoves,
       sound: false,
     },
+    // The domain functions under test here never read the clock; the value is
+    // an inert fixture placeholder.
+    gamePlay: { startTime: 0 },
     invalidMoveSnackbarOpen: false,
-    gameFinishedDialogOpen: false,
     dragHint: "None",
   };
 }
@@ -436,6 +443,139 @@ describe("resolveTrayPiece (§8.7 reference resolution)", () => {
     // Digits matching no tray value resolve to null (the drop then no-ops).
     const stray = pickStrayPiece(game);
     expect(resolveTrayPiece(game, [...stray])).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase 15 — §3.6/§5.13 game-finished & solvability-indicator derivations      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A real finished, solvable position: the fixture's game played to a natural end
+ * (every tray piece placed through the shared move-engine path, so every recorded
+ * move is `isValid: true` by construction — `preventInvalidMoves` is on, so any
+ * illegal placement would have thrown instead of being recorded). The seed-42
+ * fixture unfolds into a position this greedy cache walk always completes (7
+ * moves, verified empirically — a real, not hand-authored, finished game).
+ */
+function playToCompletion(game: Game): Game {
+  let current = game;
+  while (current.availablePieces.size > 0) {
+    let next: Game | null = null;
+    for (const [piece, cells] of current.pieceToFitCells) {
+      for (const idx of cells) {
+        try {
+          next = placePiece(piece, cellFromIndex(current.size, idx), current);
+          break;
+        } catch {
+          /* the cell may no longer fit after a sibling placement; keep looking */
+        }
+      }
+      if (next !== null) break;
+    }
+    if (next === null)
+      throw new Error(
+        "fixture: the seed-42 game stalled mid-play (impossible)",
+      );
+    current = next;
+  }
+  return current;
+}
+
+/**
+ * A finished position that is NOT solvable: the board fully re-filled (no blanks,
+ * empty tray — so §3.6's conditions 2–4 all hold vacuously) with one recorded
+ * move flagged `isValid: false` — condition 1 fails, and it fails alone, so this
+ * isolates the "every placed move is valid" clause of `gameIsSolvable`.
+ */
+function buildUnsolvableFinishedGame(): Game {
+  const board = buildBoard(4, 3, 3, GAME_SEED);
+  return {
+    size: 4,
+    board,
+    availablePieces: new Map(),
+    placedCells: Object.freeze([
+      Object.freeze({
+        pieceValue: createPiece([0, 0, 0], 3, 3),
+        cell: [0, 0] as const,
+        isValid: false,
+      }),
+    ]),
+    pieceToFitCells: new Map(),
+    cellToFitPieces: new Map(),
+    preferences: { preventInvalidMoves: true },
+  };
+}
+
+describe("isTrayEmpty (§3.6 / Phase 15 finished-game trigger)", () => {
+  it("a freshly-unfolded game is not finished (the tray holds pieces)", () => {
+    expect(isTrayEmpty(buildGame())).toBe(false);
+  });
+
+  it("a naturally-played-to-completion game is finished", () => {
+    expect(isTrayEmpty(playToCompletion(buildGame()))).toBe(true);
+  });
+
+  it("is the tray's `availablePieces.size === 0`, the §3.6 literal — at any point in the game", () => {
+    const game = buildGame();
+    // A mid-game state (one piece placed) is not finished, and tracks the size literal.
+    const [piece, [row, col]] = pickLegalPlacement(game);
+    const onePlaced = placePiece(piece, [row, col], game);
+    expect(onePlaced.availablePieces.size).toBeGreaterThan(0);
+    expect(isTrayEmpty(onePlaced)).toBe(onePlaced.availablePieces.size === 0);
+    // A finished state holds the literal true.
+    const finished = playToCompletion(game);
+    expect(finished.availablePieces.size).toBe(0);
+    expect(isTrayEmpty(finished)).toBe(true);
+  });
+});
+
+describe("formatElapsed (§5.13 / Phase 15 elapsed-time string)", () => {
+  it("formats exactly `{h}h {m}m {s}s` with no padding", () => {
+    expect(formatElapsed(0)).toBe("0h 0m 0s");
+    expect(formatElapsed(999)).toBe("0h 0m 0s"); // truncated to the whole second
+    expect(formatElapsed(85_500)).toBe("0h 1m 25s");
+    expect(formatElapsed(3_661_000)).toBe("1h 1m 1s");
+    expect(formatElapsed(7_335_000)).toBe("2h 2m 15s");
+    expect(formatElapsed(36_000_000)).toBe("10h 0m 0s");
+  });
+
+  it("truncates (never rounds up) sub-second remainders", () => {
+    expect(formatElapsed(59_999)).toBe("0h 0m 59s");
+    expect(formatElapsed(3_599_999)).toBe("0h 59m 59s");
+  });
+
+  it("clamps a negative duration to zero", () => {
+    expect(formatElapsed(-1)).toBe("0h 0m 0s");
+    expect(formatElapsed(-86_400_000)).toBe("0h 0m 0s");
+  });
+});
+
+describe("buildSolvabilityIconState (§5.13 / Phase 15 App → SolvabilityIcon slice)", () => {
+  it("projects the §4.2 preference onto `visible` verbatim", () => {
+    const game = buildGame();
+    expect(buildSolvabilityIconState(game, false).visible).toBe(false);
+    expect(buildSolvabilityIconState(game, true).visible).toBe(true);
+  });
+
+  it("consumes Phase 3's `stateIsValid` result verbatim — it does not recompute solvability", () => {
+    const cases: readonly [Game, boolean][] = [
+      // A fresh position is solvable (every §3.6 condition holds on an unfold).
+      [buildGame(), true],
+      // A naturally-finished position is solvable (every move was valid).
+      [playToCompletion(buildGame()), true],
+      // The isolated invalid-move position is not.
+      [buildUnsolvableFinishedGame(), false],
+    ];
+    for (const [game, solvable] of cases) {
+      expect(stateIsValid(game)).toBe(solvable);
+      // The slice's `solvable` is the move engine's own result — identical at
+      // either preference setting (the preference drives `visible`, not it).
+      expect(buildSolvabilityIconState(game, true).solvable).toBe(
+        stateIsValid(game),
+      );
+      expect(buildSolvabilityIconState(game, false).solvable).toBe(solvable);
+    }
   });
 });
 

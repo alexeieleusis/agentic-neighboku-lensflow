@@ -12,7 +12,6 @@ import {
 import AppBar from "@mui/material/AppBar";
 import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Snackbar from "@mui/material/Snackbar";
@@ -22,24 +21,22 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import SettingsIcon from "@mui/icons-material/Settings";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import HelpIcon from "@mui/icons-material/Help";
 import type {
   TelescopeComponent,
   TelescopedProps,
 } from "./base/TelescopeComponent.ts";
-import type { AppState, AppViewModel, TopBarView } from "./App.types.ts";
+import type { AppState, AppViewModel } from "./App.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import { undoPlay } from "./game/gameBuilder.ts";
-import { useAppActions } from "./useAppActions.ts";
-import type { AppActions } from "./useAppActions.ts";
 import { useAppViewModel } from "./useAppViewModel.ts";
 import { BoardDisplay } from "./components/BoardDisplay/BoardDisplay.tsx";
 import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailablePiecesTray.tsx";
 import { UndoButton } from "./components/UndoButton/UndoButton.tsx";
 import type { UndoButtonState } from "./components/UndoButton/UndoButton.types.ts";
 import { DragFitHintIcon } from "./components/DragFitHintIcon/DragFitHintIcon.tsx";
+import { SolvabilityIcon } from "./components/SolvabilityIcon/SolvabilityIcon.tsx";
+import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 
 /**
  * Root application shell (requirements §5.1) and the shared shell-level `DndContext`
@@ -111,22 +108,27 @@ export const App: TelescopeComponent<AppState> = (
 /**
  * The `DndContext` descendant that runs the shell's hook tiers and renders the shell:
  * the view model (`useAppViewModel` — the `state,telescope → useXViewModel → RenderX`
- * contract, requirements §7.2), the action tier (`useAppActions` — the drag-lifecycle
- * monitor registered via `useDndMonitor`: its `onDragEnd` reads the dropped piece's
- * value and the target cell off the event and commits through `placePiece`, the shared
- * placement path, §5.6; Phase 13's click-to-place will call the same path; Phase 14's
- * `onDragStart`/`onDragOver`/`onDragCancel` write the §5.6 `DragHint` through the
- * dedicated `dragHint` telescope as drag state changes — plus Phase 11's invalid-move
- * Snackbar dismissal), and the Phase 10 undo slice (`useUndoSlice` — the App →
+ * contract, requirements §7.2) and the Phase 10 undo slice (`useUndoSlice` — the App →
  * `UndoButton` §7.2 magnification).
+ *
+ * The action tier (`useAppActions`) runs INSIDE `useAppViewModel` since Phase 15: the
+ * orchestrator must share its state tier's dismissal flag with the action tier (one
+ * source of truth for the finished-game Dialog's local dismissal, §5.13), so the
+ * action closures no longer travel to `RenderApp` as a separate argument — the two
+ * user-invoked ones (the invalid-move Snackbar dismissal, §5.12; the finished-game
+ * Dialog dismissal, §5.13) are precomputed fields of the view model (§7.2: event-
+ * handler closures live in the view model, not the render function). The drag-
+ * lifecycle monitor (`useDndMonitor`'s `onDragStart`/`onDragOver`/`onDragEnd`/
+ * `onDragCancel` — the shared placement path, §5.6, and the Phase 14 `DragHint`
+ * commits) registers itself with the shell-level `DndContext` from within the view
+ * model, still a true descendant of `<DndContext>` (docs/CONVENTIONS.md dnd-kit note).
  */
 function AppConnected(
   props: Readonly<TelescopedProps<AppState>>,
 ): React.ReactElement {
-  const actions = useAppActions(props);
   const viewModel = useAppViewModel(props);
   const undo = useUndoSlice(props);
-  return RenderApp({ viewModel, undo, actions });
+  return RenderApp({ viewModel, undo });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -174,22 +176,26 @@ function useUndoSlice(
 function RenderApp(props: {
   readonly viewModel: Readonly<AppViewModel>;
   readonly undo: TelescopedProps<UndoButtonState>;
-  readonly actions: Readonly<AppActions>;
 }): React.ReactElement {
-  const { viewModel, undo, actions } = props;
+  const { viewModel, undo } = props;
   return (
     <Stack spacing={2} sx={{ p: 2, maxWidth: "44rem", mx: "auto" }}>
       <RenderTopBar
-        topBar={viewModel.topBar}
         undo={undo}
         dragHint={viewModel.dragHint}
+        solvability={viewModel.solvability}
       />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar
         open={viewModel.snackbarOpen}
-        onClose={actions.onInvalidMoveSnackbarClose}
+        onClose={viewModel.onInvalidMoveSnackbarClose}
       />
-      <RenderGameFinishedDialog open={viewModel.dialogOpen} />
+      <RenderGameFinishedDialog
+        open={viewModel.dialogOpen}
+        success={viewModel.dialogSuccess}
+        elapsed={viewModel.dialogElapsed}
+        onClose={viewModel.onGameFinishedDialogClose}
+      />
     </Stack>
   );
 }
@@ -203,36 +209,22 @@ function RenderApp(props: {
  * drag-fit-hint icon, Preferences button, New Game button, Undo button, solvability
  * icon, Help button. The drag-fit-hint icon (Phase 14) is the child component proper —
  * it reads the §5.6 `DragHint` off its own dedicated magnified telescope
- * (`viewModel.dragHint`, the App → `DragFitHintIcon` slice) and renders the info /
+ * (`dragHint`, the App → `DragFitHintIcon` slice) and renders the info /
  * thumbs-up / thumbs-down states from it; this shell just places it in the slot Phase 4
- * reserved. The Preferences / New Game / Help buttons are inert (later phases wire
- * their panels); the Undo button (Phase 10) and the solvability icon are derived from
- * state.
+ * reserved. The solvability icon (Phase 15) is likewise the child component proper —
+ * `SolvabilityIcon` reads the §5.13 `{ visible, solvable }` slice off its own
+ * dedicated magnified telescope and renders the happy face, the sad face, or nothing
+ * from it; the §3.6 solvability result and the §4.2 preference are derived upstream
+ * in the shell and passed down through that slice, never recomputed in this bar. The
+ * Preferences / New Game / Help buttons are inert (later phases wire their panels);
+ * the Undo button (Phase 10) is derived from state.
  */
 function RenderTopBar(props: {
-  readonly topBar: Readonly<TopBarView>;
   readonly undo: TelescopedProps<UndoButtonState>;
   readonly dragHint: TelescopedProps<DragHint>;
+  readonly solvability: TelescopedProps<SolvabilityIconState>;
 }): React.ReactElement {
-  const { topBar, undo, dragHint } = props;
-  const solvability = topBar.solvability;
-
-  let solvabilityIcon: React.ReactElement | null = null;
-  if (solvability.visible) {
-    solvabilityIcon = solvability.solvable ? (
-      <CheckCircleIcon
-        aria-live="polite"
-        aria-label="Position is solvable"
-        sx={{ color: "success.main", p: 0.5 }}
-      />
-    ) : (
-      <ReportProblemIcon
-        aria-live="polite"
-        aria-label="No solution exists"
-        sx={{ color: "error.main", p: 0.5 }}
-      />
-    );
-  }
+  const { undo, dragHint, solvability } = props;
 
   return (
     <AppBar position="static" sx={{ px: 1 }}>
@@ -262,7 +254,14 @@ function RenderTopBar(props: {
            * — the only empty-`placedCells` guard); this shell just places it.
            */}
           <UndoButton {...undo} />
-          {solvabilityIcon}
+          {/*
+           * Phase 15: the solvability slot is now the child component proper. The
+           * happy/sad-face-vs-hidden logic lives entirely in `SolvabilityIcon` + its
+           * slice (§5.13 — the §3.6 solvability result and the §4.2 preference are
+           * derived upstream in the shell and passed down through the dedicated
+           * telescope); this shell just places it in the slot Phase 4 reserved.
+           */}
+          <SolvabilityIcon {...solvability} />
           <Tooltip title="Help">
             <IconButton size="small" aria-label="Help">
               <HelpIcon />
@@ -325,23 +324,44 @@ function RenderInvalidMoveSnackbar(props: {
   );
 }
 
-/** §3.6/§5.13: closed by default; Phase 15 drives it from the empty-tray state. */
-function RenderGameFinishedDialog(
-  props: Readonly<{ open: boolean }>,
-): React.ReactElement {
-  const { open } = props;
+/**
+ * §3.6/§5.13 (Phase 15): the game-finished overlay. Open state is a pure derivation
+ * of shell state (`dialogOpen` — the tray empty, §3.6, and not dismissed), so this
+ * function owns no UI state of its own: a projection of the view model plus the
+ * shell's close action. While open it shows exactly one alert:
+ *   - success — `severity="success"` (MUI v9's `MuiAlert-colorSuccess` class; both
+ *     severities root at `role="alert"`), carrying the §5.13 elapsed-time string
+ *     `{h}h {m}m {s}s` (`dialogElapsed` — the duration captured at the moment the
+ *     tray emptied, frozen for the Dialog's open lifetime, not a live timer)
+ *     when `gameIsSolvable` held as the tray emptied;
+ *   - failure — `severity="error"` (`MuiAlert-colorError`) only, with no
+ *     elapsed-time string, when the position is not solvable.
+ * The sad face / failure alert are informational only (§5.13): no forced-undo
+ * mechanic exists — `onClose` (MUI's Escape / backdrop-click dismissal) merely
+ * dismisses the overlay so the player can reach Undo and run the video's recovery
+ * loop ("press undo until the happy face reappears"); Undo itself stays driven
+ * solely by Phase 10's `placedCells`-empty guard.
+ */
+function RenderGameFinishedDialog(props: {
+  readonly open: boolean;
+  readonly success: boolean;
+  readonly elapsed: string;
+  readonly onClose: () => void;
+}): React.ReactElement {
+  const { open, success, elapsed, onClose } = props;
   return (
-    <Dialog open={open} aria-describedby="game-finished-body">
+    <Dialog open={open} onClose={onClose}>
       <DialogTitle>Game finished</DialogTitle>
       <DialogContent>
-        <Typography
-          id="game-finished-body"
-          variant="body2"
-          component="div"
-          sx={{ color: "text.secondary" }}
-        >
-          This overlay is a skeleton; Phase 15 adds the success/failure alert.
-        </Typography>
+        {success ? (
+          <Alert severity="success" sx={{ width: "100%" }}>
+            Solved in {elapsed}
+          </Alert>
+        ) : (
+          <Alert severity="error" sx={{ width: "100%" }}>
+            No solution exists for this position.
+          </Alert>
+        )}
       </DialogContent>
     </Dialog>
   );

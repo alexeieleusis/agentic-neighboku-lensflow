@@ -4,6 +4,7 @@ import type { PieceType } from "./components/CellDisplay/CellDisplay.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
+import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -65,6 +66,18 @@ export interface AppPreferences {
 }
 
 /**
+ * §5.13 / §5.9 — the in-flight game's clock: when the current game started, in
+ * epoch milliseconds. The shell owns it (the move engine stays time-free, §7.4): it
+ * is stamped once at shell init (`main.tsx`) and — once the New Game panel ships
+ * (Phase 17) — reset when a fresh game starts. The finished-game Dialog's elapsed
+ * string (§5.13) is the difference between "now" (the shell's duration timer,
+ * Phase 15) and this value.
+ */
+export interface GamePlayState {
+  readonly startTime: number;
+}
+
+/**
  * Root shell state (requirements §5.1, §7.3). `game` is the Phase 1–3 move-engine `Game`;
  * everything else is app-shell-owned and is never persisted (only `preferences` is, later).
  */
@@ -72,14 +85,14 @@ export interface AppState {
   /** A real, freshly-unfolded Phase 3 `Game` produced by `buildBoard` + `unfoldGame`. */
   readonly game: Game;
   readonly preferences: AppPreferences;
+  /** §5.13/§5.9: when the current game started (epoch ms); the duration timer's origin. */
+  readonly gamePlay: GamePlayState;
   /**
    * §5.12 invalid-move feedback (Phase 11): closed by default; the drag-end path opens
    * it when a placement is rejected (`placePiece` throw, §3.5), and dismissal (6-second
    * auto-hide or manual close) writes it back closed through the action tier.
    */
   readonly invalidMoveSnackbarOpen: boolean;
-  /** §3.6/§5.13 game-finished overlay: closed by default; Phase 15 drives it. */
-  readonly gameFinishedDialogOpen: boolean;
   /**
    * §5.6 (Phase 14): the drag-fit hint's current value — `"None"` whenever no drag
    * is in progress, updated by the shell's drag-lifecycle monitor (`useAppActions`)
@@ -95,18 +108,6 @@ export interface AppState {
 /* -------------------------------------------------------------------------- */
 /* View-model shapes consumed by RenderApp                                     */
 /* -------------------------------------------------------------------------- */
-
-/** The top-bar solvability indicator (requirements §5.1, §5.13). */
-export interface SolvabilityView {
-  readonly visible: boolean;
-  readonly solvable: boolean;
-}
-
-/** The state-dependent bits of the top bar (the rest is inert this phase). */
-export interface TopBarView {
-  readonly undoEnabled: boolean;
-  readonly solvability: SolvabilityView;
-}
 
 /** Everything `RenderApp` needs, precomputed by `useAppViewModel`. */
 export interface AppViewModel {
@@ -132,8 +133,53 @@ export interface AppViewModel {
    * magnification, and the slice mirrors it as shell state changes.
    */
   readonly dragHint: TelescopedProps<DragHint>;
-  readonly topBar: TopBarView;
+  /**
+   * The Phase 15 top-bar slice: the App → `SolvabilityIcon` magnification (§7.2) onto
+   * the §5.13 solvability-indicator state — the §4.2 `hints.gameIsSolvable`
+   * preference plus Phase 3's `stateIsValid` result on `game`. Read-only from the
+   * icon's point of view (its lens setter is the identity): both values are derived
+   * upstream, in the shell, and this slice mirrors them as shell state changes.
+   */
+  readonly solvability: TelescopedProps<SolvabilityIconState>;
   /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;
+  /**
+   * §5.12: the invalid-move Snackbar's dismissal closure (Phase 11) — MUI fires it on
+   * auto-hide / click-away / Escape / the Alert's close button; it commits the
+   * shell's `invalidMoveSnackbarOpen` back to closed through the telescope.
+   */
+  readonly onInvalidMoveSnackbarClose: () => void;
+  /**
+   * §5.13 (Phase 15): the game-finished Dialog's open state — derived, not stored:
+   * open exactly while the tray is empty (`availablePieces.size === 0`, §3.6) and the
+   * player has not dismissed it since the tray emptied; closed at every other tray
+   * state, including immediately after a fresh New Game start.
+   */
   readonly dialogOpen: boolean;
+  /**
+   * §5.13: the finished-game outcome while the Dialog is open — `true` when
+   * `gameIsSolvable` (Phase 3's `stateIsValid`) holds, picking the success alert;
+   * `false` picks the failure alert. Stable for the Dialog's whole open lifetime:
+   * with the tray empty no placement is possible, and the one state change that
+   * refills the tray (Undo) closes the Dialog at the same time.
+   */
+  readonly dialogSuccess: boolean;
+  /**
+   * §5.13: the elapsed-time string for the success alert, formatted exactly
+   * `{h}h {m}m {s}s` (e.g. `0h 2m 15s`) — the difference between the tray-emptying
+   * moment and `gamePlay.startTime`, captured once at that moment (Phase 15's
+   * `useAppState` tier's `finishedElapsedMs`) and held static for the Dialog's
+   * whole open lifetime — NOT a live read of the shell's duration timer, which
+   * would keep the string advancing after the game has ended. Rendered only by
+   * the success alert.
+   */
+  readonly dialogElapsed: string;
+  /**
+   * §5.13 (Phase 15): the game-finished Dialog's dismissal closure — MUI fires it on
+   * Escape / backdrop click. Dismissal is local UI state (the Dialog stays closed
+   * while the tray remains empty, so the player can reach Undo and run the
+   * "press undo until the happy face reappears" recovery loop, §5.13), and it resets
+   * when the tray refills, so the next time the tray empties the Dialog opens again.
+   */
+  readonly onGameFinishedDialogClose: () => void;
 }

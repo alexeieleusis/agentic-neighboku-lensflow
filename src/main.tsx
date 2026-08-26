@@ -51,8 +51,10 @@ function buildInitialGame(preferences: AppPreferences): Game {
 
 /**
  * Assemble the initial shell state from a preferences object: a real, freshly-built
- * game plus the preferences themselves, with both overlays closed/inactive (Phase 11
- * opens the Snackbar, Phase 15 drives the Dialog). Keeping this a function of the
+ * game plus the preferences themselves, with the invalid-move feedback closed
+ * (Phase 11 opens it) and no drag in progress. The finished-game Dialog (Phase 15)
+ * needs no initial flag: it is a pure derivation of the tray's emptiness, and a
+ * freshly-unfolded game always holds pieces. Keeping this a function of the
  * preferences (rather than a module-level literal) is what a later phase's
  * load-and-rebuild-from-loaded-preferences path will reuse.
  */
@@ -60,8 +62,11 @@ function buildInitialAppState(preferences: AppPreferences): AppState {
   return {
     game: buildInitialGame(preferences),
     preferences,
+    // §5.13/§5.9 (Phase 15): the game clock starts when the shell assembles its
+    // initial state — the finished-game Dialog's elapsed string measures from here
+    // (Phase 17's New Game panel will reset it when a fresh game starts).
+    gamePlay: { startTime: Date.now() },
     invalidMoveSnackbarOpen: false,
-    gameFinishedDialogOpen: false,
     // §5.6 (Phase 14): no drag is in progress at start, so the hint is "None".
     dragHint: "None",
   };
