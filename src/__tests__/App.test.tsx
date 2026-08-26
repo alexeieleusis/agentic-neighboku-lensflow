@@ -72,6 +72,7 @@ function buildAppState(): AppState {
     preferences: PREFERENCES,
     invalidMoveSnackbarOpen: false,
     gameFinishedDialogOpen: false,
+    dragHint: "None",
   };
 }
 
@@ -154,6 +155,15 @@ describe("App shell (§5.1 + §5.6 shared drag context)", () => {
     expect(
       screen.getByRole("button", { name: "Undo" }).hasAttribute("disabled"),
     ).toBe(true);
+
+    // Top bar (§5.1/§5.6, Phase 14): the drag-fit-hint slot is the live icon component,
+    // at rest in its `None` state — the info icon's slot, announcing "no piece is being
+    // dragged" and re-announcing hint changes politely.
+    const hintSlot = screen.getByRole("button", {
+      name: "No piece is being dragged",
+    });
+    expect(hintSlot.getAttribute("aria-live")).toBe("polite");
+    expect(hintSlot.querySelector("svg")).not.toBeNull();
 
     // Overlays start closed (§5.12 Phase 11 / §5.13 Phase 15): a closed MUI
     // Snackbar renders nothing at all, so the feedback simply is not in the DOM.

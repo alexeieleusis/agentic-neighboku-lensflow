@@ -7,9 +7,10 @@ import type {
 import type { BoardCell } from "./components/CellDisplay/CellDisplay.types.ts";
 import { cellFromDroppableId } from "./components/CellDisplay/useCellDisplayDomain.ts";
 import { pieceFromDraggableId } from "./components/DraggablePiece/useDraggablePieceDomain.ts";
+import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import type { Piece } from "./game/entities";
 import { isSamePiece } from "./game/entities";
-import { placePiece } from "./game/gameBuilder.ts";
+import { cellIndex, placePiece } from "./game/gameBuilder.ts";
 import type { Game } from "./game/gameBuilder.ts";
 
 /**
@@ -111,6 +112,99 @@ export function resolveDragDrop(
   } catch {
     return { ...state, invalidMoveSnackbarOpen: true };
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 14 — §5.6 drag-fit hint state machine                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * §5.6 / Phase 14 — the shell's drag-lifecycle event, reduced to the plain fields the
+ * `DragHint` state machine reads, one discriminated member per dnd-kit monitor event
+ * the shell observes (`onDragStart` / `onDragOver` / `onDragEnd` / `onDragCancel`):
+ *   - `start` / `end` / `cancel` carry no ids — the hint after them does not depend on
+ *     which piece or target was involved, only that the drag began / finished / was
+ *     cancelled;
+ *   - `over` carries the two ids the event reports: the dragged piece's `useDraggable`
+ *     id and the droppable the pointer currently hovers (`null` while hovering none).
+ */
+export type DragLifecycleEvent =
+  | { readonly kind: "start" }
+  | {
+      readonly kind: "over";
+      readonly activeId: string;
+      readonly overId: string | null;
+    }
+  | { readonly kind: "end" }
+  | { readonly kind: "cancel" };
+
+/**
+ * §5.6 / Phase 14: the `DragHint` the shell should hold after the given drag-lifecycle
+ * event. This is the whole hint state machine, as a pure projection of shell state +
+ * event onto the four-value union (requirements §5.6, §5.11 `hintFitOnDrag` row):
+ *
+ *   - `start`          → `"Unknown"`: the drag is in progress and dnd-kit has reported
+ *                        no hovered target yet.
+ *   - `end` / `cancel` → `"None"`: no drag is in progress anymore.
+ *   - `over`           → `"Unknown"` whenever the hint cannot be determined — the
+ *                        pointer hovers no registered droppable target (`overId` is
+ *                        `null`, including hovering a filled cell, which is not a
+ *                        droppable), `preferences.hints.fitOnDrag` is off (Ok/NotOk are
+ *                        only ever produced while it is on), or either id does not
+ *                        resolve to a real tray piece / in-bounds cell; else `"Ok"` when
+ *                        the hovered target is a legal placement for the dragged piece
+ *                        and `"NotOk"` when it is not.
+ *
+ * Legality reads the move engine's CURRENT `pieceToFitCells` cache — the exact same
+ * source `placePiece` consults (§3.5 step 1) — so the hint can never disagree with the
+ * drop: a target the hint calls `"Ok"` is one `placePiece` will accept, and one it
+ * calls `"NotOk"` is one `placePiece` will reject (given `preventInvalidMoves`). The
+ * cache is keyed over the tray's interned `Piece` references (§8.7), so the active id's
+ * digits are resolved back to the tray's own key via `resolveTrayPiece` before lookup.
+ */
+export function resolveDragHint(
+  state: AppState,
+  event: Readonly<DragLifecycleEvent>,
+): DragHint {
+  switch (event.kind) {
+    case "start":
+      return "Unknown";
+    case "end":
+    case "cancel":
+      return "None";
+    case "over":
+      if (event.overId === null) return "Unknown";
+      if (!state.preferences.hints.fitOnDrag) return "Unknown";
+      return dragHintOverTarget(state, event.activeId, event.overId);
+  }
+}
+
+/**
+ * The `over`-event branch of {@link resolveDragHint}: the hint while the dragged piece
+ * hovers a registered droppable target with `fitOnDrag` on. `"Unknown"` for any target
+ * the ids do not resolve to a real in-bounds cell holding a real tray piece (defensive:
+ * only board cells register as droppables and only tray pieces as draggables, so these
+ * ids always resolve in practice); else the cache lookup's `"Ok"`/`"NotOk"`.
+ */
+function dragHintOverTarget(
+  state: AppState,
+  activeId: string,
+  overId: string,
+): DragHint {
+  const cell = cellFromDroppableId(overId);
+  if (cell === null) return "Unknown";
+  const [row, col] = cell;
+  // An out-of-bounds "cell" id is not a registered droppable either (§3.5 preconditions
+  // mirror at the domain boundary): the hint stays undetermined rather than "fits".
+  if (row < 0 || row >= state.game.size || col < 0 || col >= state.game.size) {
+    return "Unknown";
+  }
+  const piece = resolveTrayPiece(state.game, pieceFromDraggableId(activeId));
+  if (piece === null) return "Unknown";
+  const fittingCells = state.game.pieceToFitCells.get(piece) ?? [];
+  return fittingCells.includes(cellIndex(state.game.size, row, col))
+    ? "Ok"
+    : "NotOk";
 }
 
 /**

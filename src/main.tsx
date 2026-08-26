@@ -62,6 +62,8 @@ function buildInitialAppState(preferences: AppPreferences): AppState {
     preferences,
     invalidMoveSnackbarOpen: false,
     gameFinishedDialogOpen: false,
+    // §5.6 (Phase 14): no drag is in progress at start, so the hint is "None".
+    dragHint: "None",
   };
 }
 

@@ -16,6 +16,7 @@ import {
   buildBoardDisplayState,
   closeInvalidMoveSnackbar,
   resolveDragDrop,
+  resolveDragHint,
   resolveTrayPiece,
 } from "../useAppDomain";
 
@@ -49,6 +50,7 @@ function buildState(game: Game): AppState {
     },
     invalidMoveSnackbarOpen: false,
     gameFinishedDialogOpen: false,
+    dragHint: "None",
   };
 }
 
@@ -257,6 +259,154 @@ describe("useAppDomain (§5.6 drag-drop resolution)", () => {
     expect(next.invalidMoveSnackbarOpen).toBe(true);
     expect(next.game).toBe(state.game);
     expect(state.game.placedCells).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase 14 — §5.6 drag-fit hint state machine                                 */
+/* -------------------------------------------------------------------------- */
+
+/** A `buildState` with the §4.2 `hintFitOnDrag` preference flipped on. */
+function buildStateWithFitOnDrag(game: Game): AppState {
+  const state = buildState(game);
+  return {
+    ...state,
+    preferences: {
+      ...state.preferences,
+      hints: { ...state.preferences.hints, fitOnDrag: true },
+    },
+  };
+}
+
+describe("resolveDragHint (§5.6 / Phase 14 drag-fit hint state machine)", () => {
+  it("start: a drag in progress with no hovered target yet is `Unknown`", () => {
+    const state = buildStateWithFitOnDrag(buildGame());
+    expect(resolveDragHint(state, { kind: "start" })).toBe("Unknown");
+    // Independent of the preference — the hint is undetermined until a target is
+    // hovered, regardless of `hintFitOnDrag`.
+    expect(resolveDragHint(buildState(buildGame()), { kind: "start" })).toBe(
+      "Unknown",
+    );
+  });
+
+  it("end / cancel: no drag in progress anymore is `None`", () => {
+    const state = buildStateWithFitOnDrag(buildGame());
+    expect(resolveDragHint(state, { kind: "end" })).toBe("None");
+    expect(resolveDragHint(state, { kind: "cancel" })).toBe("None");
+  });
+
+  it("over with no hovered target (`overId` null) is `Unknown`, even with the preference on", () => {
+    const [piece] = pickLegalPlacement(buildGame());
+    const state = buildStateWithFitOnDrag(buildGame());
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(piece),
+        overId: null,
+      }),
+    ).toBe("Unknown");
+  });
+
+  it("over a legal target with `hintFitOnDrag` on is `Ok`", () => {
+    const game = buildGame();
+    const [piece, [row, col]] = pickLegalPlacement(game);
+    const state = buildStateWithFitOnDrag(game);
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(piece),
+        overId: cellDroppableId(row, col),
+      }),
+    ).toBe("Ok");
+  });
+
+  it("over a target that is not a legal placement with `hintFitOnDrag` on is `NotOk`", () => {
+    const game = buildGame();
+    const [piece, cell] = pickIllegalPlacement(game);
+    const state = buildStateWithFitOnDrag(game);
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(piece),
+        overId: cellDroppableId(cell[0], cell[1]),
+      }),
+    ).toBe("NotOk");
+  });
+
+  it("over a target with `hintFitOnDrag` off is `Unknown` (never Ok/NotOk)", () => {
+    const game = buildGame();
+    const [piece, [row, col]] = pickLegalPlacement(game);
+    // fitOnDrag is false in the plain buildState.
+    const state = buildState(game);
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(piece),
+        overId: cellDroppableId(row, col),
+      }),
+    ).toBe("Unknown");
+    // …and an illegal target is equally undetermined, not `NotOk`.
+    const [badPiece, badCell] = pickIllegalPlacement(game);
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(badPiece),
+        overId: cellDroppableId(badCell[0], badCell[1]),
+      }),
+    ).toBe("Unknown");
+  });
+
+  it("over a target whose id does not parse as a cell is `Unknown`", () => {
+    const game = buildGame();
+    const [piece] = pickLegalPlacement(game);
+    const state = buildStateWithFitOnDrag(game);
+    for (const overId of ["piece-0-0", "garbage", ""]) {
+      expect(
+        resolveDragHint(state, {
+          kind: "over",
+          activeId: trayPieceDraggableId(piece),
+          overId,
+        }),
+      ).toBe("Unknown");
+    }
+  });
+
+  it("over an out-of-bounds cell id is `Unknown` (not a registered droppable)", () => {
+    const game = buildGame();
+    const [piece] = pickLegalPlacement(game);
+    const state = buildStateWithFitOnDrag(game);
+    // Parses as a cell, but lies beyond the board — placePiece's own §3.5
+    // precondition would reject it, so the hint stays undetermined.
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(piece),
+        overId: cellDroppableId(game.size, 0),
+      }),
+    ).toBe("Unknown");
+  });
+
+  it("with an active id that does not resolve to a tray piece is `Unknown`", () => {
+    const game = buildGame();
+    const [, [row, col]] = pickLegalPlacement(game);
+    const state = buildStateWithFitOnDrag(game);
+    // Digits no tray entry matches.
+    const stray = pickStrayPiece(game);
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: trayPieceDraggableId(stray),
+        overId: cellDroppableId(row, col),
+      }),
+    ).toBe("Unknown");
+    // …and a fully unparseable active id.
+    expect(
+      resolveDragHint(state, {
+        kind: "over",
+        activeId: "nope",
+        overId: cellDroppableId(row, col),
+      }),
+    ).toBe("Unknown");
   });
 });
 
