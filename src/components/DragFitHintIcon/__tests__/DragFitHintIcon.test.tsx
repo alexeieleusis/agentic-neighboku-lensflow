@@ -6,6 +6,13 @@ import type { DragHint } from "../../DraggablePiece/DraggablePiece.types";
 import { DragFitHintIcon } from "../DragFitHintIcon";
 import { useDragFitHintIconViewModel } from "../useDragFitHintIconViewModel";
 
+const ARIA_LABEL = {
+  None: "No piece is being dragged",
+  Unknown: "Piece is being dragged",
+  Ok: "Dragged piece fits",
+  NotOk: "Dragged piece does not fit",
+} as const satisfies Record<DragHint, string>;
+
 // @testing-library/react's auto-cleanup only hooks in when Vitest's `globals` mode is
 // on; here it is off, so unmount explicitly (same convention as the Phase 5/7 tests).
 afterEach(() => {
@@ -18,13 +25,7 @@ function hintProps(hint: DragHint): TelescopedProps<DragHint> {
 
 function iconSvgFor(hint: DragHint): SVGElement {
   render(<DragFitHintIcon {...hintProps(hint)} />);
-  const ariaLabel = {
-    None: "No piece is being dragged",
-    Unknown: "Piece is being dragged",
-    Ok: "Dragged piece fits",
-    NotOk: "Dragged piece does not fit",
-  } satisfies Record<DragHint, string>;
-  const slot = screen.getByRole("button", { name: ariaLabel[hint] });
+  const slot = screen.getByRole("button", { name: ARIA_LABEL[hint] });
   const svg = slot.querySelector("svg");
   if (svg === null) throw new Error(`expected an icon svg in the ${hint} slot`);
   return svg;
@@ -69,16 +70,7 @@ describe("DragFitHintIcon (§5.6 / Phase 14 top-bar slot)", () => {
       render(<DragFitHintIcon {...hintProps(hint)} />);
       // The slot is the first top-bar element: it must be findable by its label in
       // every state, and re-announce changes politely.
-      const slot = screen.getByRole("button", {
-        name:
-          hint === "None"
-            ? "No piece is being dragged"
-            : hint === "Unknown"
-              ? "Piece is being dragged"
-              : hint === "Ok"
-                ? "Dragged piece fits"
-                : "Dragged piece does not fit",
-      });
+      const slot = screen.getByRole("button", { name: ARIA_LABEL[hint] });
       expect(slot.getAttribute("aria-live")).toBe("polite");
     }
   });
