@@ -60,6 +60,8 @@ function buildInternal(
     solvable: true,
     dialogDismissed: false,
     setDialogDismissed: vi.fn(),
+    preferencesDrawerOpen: false,
+    setPreferencesDrawerOpen: vi.fn(),
     ...overrides,
   };
 }
@@ -412,6 +414,47 @@ describe("useAppActions (§5.6 / Phase 14 drag-fit hint lifecycle)", () => {
     // telescope re-emits nothing (only the replayed initial state is observed).
     expect(internal.setDialogDismissed).toHaveBeenCalledTimes(1);
     expect(internal.setDialogDismissed).toHaveBeenCalledWith(true);
+    expect(emissions).toHaveLength(1);
+    expect(emissions[0]).toBe(state);
+  });
+
+  it("onPreferencesToggle (§5.8 / Phase 16) flips the state tier's drawer flag — and nothing else, in either direction", () => {
+    // Closed drawer (the mount-time default): the toggle opens it.
+    const openInternal = buildInternal();
+    const opened = dragEndHarness(true, false, openInternal);
+    opened.actions.onPreferencesToggle();
+    opened.unsubscribe();
+    expect(openInternal.setPreferencesDrawerOpen).toHaveBeenCalledTimes(1);
+    expect(openInternal.setPreferencesDrawerOpen).toHaveBeenCalledWith(true);
+    expect(opened.emissions).toHaveLength(1); // no telescope write at all
+    expect(opened.emissions[0]).toBe(opened.state);
+
+    // Open drawer: the same toggle closes it.
+    const closedInternal = buildInternal({ preferencesDrawerOpen: true });
+    const closed = dragEndHarness(true, false, closedInternal);
+    closed.actions.onPreferencesToggle();
+    closed.unsubscribe();
+    expect(closedInternal.setPreferencesDrawerOpen).toHaveBeenCalledTimes(1);
+    expect(closedInternal.setPreferencesDrawerOpen).toHaveBeenCalledWith(false);
+    expect(closed.emissions).toHaveLength(1);
+    expect(closed.emissions[0]).toBe(closed.state);
+  });
+
+  it("onPreferencesDrawerClose (§5.8 / Phase 16) closes the drawer through the state tier's setter without a telescope write", () => {
+    const internal = buildInternal({ preferencesDrawerOpen: true });
+    const { state, actions, emissions, unsubscribe } = dragEndHarness(
+      true,
+      false,
+      internal,
+    );
+
+    actions.onPreferencesDrawerClose();
+    unsubscribe();
+
+    expect(internal.setPreferencesDrawerOpen).toHaveBeenCalledTimes(1);
+    expect(internal.setPreferencesDrawerOpen).toHaveBeenCalledWith(false);
+    // The open/closed flag is shell-local UI state, not `AppState`: the shell
+    // telescope re-emits nothing.
     expect(emissions).toHaveLength(1);
     expect(emissions[0]).toBe(state);
   });

@@ -1,4 +1,9 @@
-import type { AppPreferences, AppState, HintPreferences } from "./App.types.ts";
+import type {
+  AppPreferences,
+  AppState,
+  HintPreferences,
+  PieceType,
+} from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type {
   BoardDisplayState,
@@ -95,6 +100,18 @@ export interface DragDropEventIds {
  * absorbed here with no partial mutation; the next state is the input state with only
  * `invalidMoveSnackbarOpen` set (§5.12) — `game` keeps its reference, so a rejected
  * attempt changes nothing but the invalid-move feedback the shell now opens.
+ *
+ * §5.8 (Phase 16): the engine consults its own NARROW `GamePreferences` (seeded at
+ * game build), so the shell hands it a game whose narrow `preventInvalidMoves`
+ * mirrors the shell's LIVE §4.2 preference: the Preferences panel's "Prevent
+ * Invalid Moves" switch steers the running game on the very next drop — the
+ * §5.12 feedback path is driven by the switch, end to end, not by the value
+ * that happened to be stored at load time. The mirror is safe both ways: with
+ * the switch off, an illegal drop is applied and recorded `isValid: false`
+ * (§3.5) instead of throwing; the carried-over narrow value keeps the next
+ * game in lockstep until the next toggle. Click-to-place (Phase 13) needs no
+ * mirror: every tray button is a legal target by construction, so the §3.5
+ * guard can never fire on that path.
  */
 export function resolveDragDrop(
   state: AppState,
@@ -109,7 +126,15 @@ export function resolveDragDrop(
   );
   if (piece === null) return state;
   try {
-    return { ...state, game: placePiece(piece, cell, state.game) };
+    return {
+      ...state,
+      game: placePiece(piece, cell, {
+        ...state.game,
+        preferences: {
+          preventInvalidMoves: state.preferences.preventInvalidMoves,
+        },
+      }),
+    };
   } catch {
     return { ...state, invalidMoveSnackbarOpen: true };
   }
@@ -293,4 +318,102 @@ export function resolveTrayPiece(
     if (isSamePiece(piece, digits)) return piece;
   }
   return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 16 — §4.3/§8.5 stored-preferences reconciliation                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * §4.3 — the load-time merge of a stored preferences blob over the §4.2
+ * defaults: every stored field that arrives with a shape the `AppPreferences`
+ * type accepts wins, and every missing, partial, or malformed field falls
+ * back to its default — so a missing key, an empty stored object, or a
+ * stored object from an older/partial preferences shape all resolve to a
+ * fully-populated, correctly-typed `AppPreferences` without throwing.
+ * `stored` is the parsed `localStorage` value (`undefined` when the key is
+ * absent or the blob is unparseable JSON); this function is the pure core of
+ * `main.tsx`'s load path and performs no storage access itself.
+ *
+ * §8.5: `scalars.dimension` is forced to `3` in the result regardless of what
+ * value (if any) the stored blob carried — reproduced exactly as observed in
+ * the original, not "fixed" or reconciled with `NewGamePanel`'s
+ * size-dependent rule (Phase 17 scope): always `3` on load, full stop.
+ */
+export function mergeStoredPreferences(
+  defaults: AppPreferences,
+  stored: unknown,
+): AppPreferences {
+  const s = isPreferencesRecord(stored) ? stored : {};
+  const scalars = isPreferencesRecord(s.scalars) ? s.scalars : {};
+  const hints = isPreferencesRecord(s.hints) ? s.hints : {};
+  return {
+    scalars: {
+      base: positiveIntOr(defaults.scalars.base, scalars.base),
+      // §8.5 (above): the unconditional load-time override.
+      dimension: 3,
+      size: positiveIntOr(defaults.scalars.size, scalars.size),
+    },
+    pieceType: pieceTypeOr(defaults.pieceType, s.pieceType),
+    hints: {
+      fitPieceCount: booleanOr(
+        defaults.hints.fitPieceCount,
+        hints.fitPieceCount,
+      ),
+      pieceCells: booleanOr(defaults.hints.pieceCells, hints.pieceCells),
+      fitOnDrag: booleanOr(defaults.hints.fitOnDrag, hints.fitOnDrag),
+      showFitPiecesOnHover: booleanOr(
+        defaults.hints.showFitPiecesOnHover,
+        hints.showFitPiecesOnHover,
+      ),
+      availablePiecesCount: booleanOr(
+        defaults.hints.availablePiecesCount,
+        hints.availablePiecesCount,
+      ),
+      availablePieceUniqueCell: booleanOr(
+        defaults.hints.availablePieceUniqueCell,
+        hints.availablePieceUniqueCell,
+      ),
+      gameIsSolvable: booleanOr(
+        defaults.hints.gameIsSolvable,
+        hints.gameIsSolvable,
+      ),
+    },
+    preventInvalidMoves: booleanOr(
+      defaults.preventInvalidMoves,
+      s.preventInvalidMoves,
+    ),
+    sound: booleanOr(defaults.sound, s.sound),
+  };
+}
+
+/**
+ * A non-null, non-array object — the only shape a stored preferences blob can
+ * take and still carry fields; anything else (a missing key, a JSON string or
+ * number, `null`, an array) is treated as "no stored preferences".
+ */
+function isPreferencesRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** `value` when it is a boolean, else `fallback` — a malformed stored flag never poisons a default. */
+function booleanOr(fallback: boolean, value: unknown): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+/**
+ * `value` when it is a positive integer, else `fallback`: the board builders
+ * `RangeError` on non-positive or non-integral scalars (§3.1/§3.3), so a
+ * malformed stored scalar falls back to its default rather than crashing the
+ * first board build after load.
+ */
+function positiveIntOr(fallback: number, value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : fallback;
+}
+
+/** `value` when it is one of the two `PieceType` literals, else `fallback` — a corrupted stored skin falls back rather than mis-rendering every face. */
+function pieceTypeOr(fallback: PieceType, value: unknown): PieceType {
+  return value === "Shapes" || value === "Faces" ? value : fallback;
 }

@@ -14,8 +14,12 @@ import type { TelescopedProps } from "../base/TelescopeComponent";
 import { ThemeProvider } from "@mui/material/styles";
 import { App } from "../App";
 import type { AppState, AppPreferences } from "../App.types";
+import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
+import { trayPieceDraggableId } from "../components/DraggablePiece/useDraggablePieceDomain";
 import { buildBoard } from "../game/boardBuilder";
-import { unfoldGame, type Game } from "../game/gameBuilder";
+import type { Piece } from "../game/entities";
+import { cellFromIndex, unfoldGame, type Game } from "../game/gameBuilder";
+import { resolveDragDrop } from "../useAppDomain";
 import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 import { darkTheme } from "../theme";
 
@@ -110,6 +114,29 @@ function remainingUnits(state: AppState): number {
   let total = 0;
   for (const count of state.game.availablePieces.values()) total += count;
   return total;
+}
+
+/**
+ * An IN-BOUNDS (piece, cell) pair where the piece does NOT legally fit the cell —
+ * read straight off the fit cache (`piece` is a value the tray still holds; `cell`
+ * is an in-bounds cell whose fit list does not contain it). In-bounds on purpose:
+ * an out-of-bounds target throws at `placePiece`'s domain boundary REGARDLESS of
+ * `preventInvalidMoves` (§3.5 precondition), so only an in-bounds-but-illegal
+ * target isolates the §4.2 switch's own effect on the §5.12 feedback (§3.5 step 2).
+ */
+function pickIllegalPlacement(
+  game: Game,
+): readonly [Piece, readonly [number, number]] {
+  for (const [piece, count] of game.availablePieces) {
+    if (count === 0) continue;
+    for (const idx of game.cellToFitPieces.keys()) {
+      const fits = game.cellToFitPieces.get(idx) ?? [];
+      if (!fits.includes(piece)) {
+        return [piece, cellFromIndex(game.size, idx)];
+      }
+    }
+  }
+  throw new Error("fixture: no illegal in-bounds placement (impossible)");
 }
 
 /**
@@ -496,5 +523,172 @@ describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.8 preferences drawer (Phase 16)                                          */
+/* -------------------------------------------------------------------------- */
+
+describe("App shell §5.8 — preferences drawer (Phase 16)", () => {
+  it("opens on the gear icon's click: the 9 §5.8 rows appear, and the button announces the open state", () => {
+    renderApp(buildAppState());
+
+    // Closed: a closed MUI Modal (the Drawer's root) renders nothing at all,
+    // so the panel's controls simply are not in the DOM.
+    expect(screen.queryByRole("switch")).toBeNull();
+    const gear = screen.getByRole("button", { name: "Preferences" });
+    expect(gear.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(gear);
+
+    // §5.8: the 8 boolean rows as MUI switches plus the pieceType radio row.
+    expect(screen.getAllByRole("switch")).toHaveLength(8);
+    expect(screen.getByRole("radiogroup")).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Shapes" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Faces" })).toBeTruthy();
+    // The gear button's open state is announced to assistive tech. While the
+    // drawer (a MUI Modal) is open, the background content — the top bar
+    // included — is `aria-hidden` by design, so the button is only reachable
+    // with `hidden: true` from here on.
+    expect(
+      screen
+        .getByRole("button", { name: "Preferences", hidden: true })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("closes on the gear icon again, and on Escape (the drawer's own dismissal)", () => {
+    vi.useFakeTimers();
+    try {
+      renderApp(buildAppState());
+      fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+      expect(screen.getAllByRole("switch")).toHaveLength(8);
+
+      // Gear icon again (now in the a11y-hidden background — `hidden: true`,
+      // as the open-drawer assertion above notes): the shell's toggle action
+      // flips the drawer closed…
+      fireEvent.click(
+        screen.getByRole("button", { name: "Preferences", hidden: true }),
+      );
+      // MUI settles the Drawer's exit transition on its own timer (as the
+      // Phase 15 Dialog test does), so advance before asserting the DOM.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByRole("switch")).toBeNull();
+
+      // Open it again and dismiss it the MUI way: Escape on the drawer's
+      // content (MUI's Modal listens on its own root, where the keystroke
+      // bubbles up — not on `document`).
+      fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+      expect(screen.getAllByRole("switch")).toHaveLength(8);
+      fireEvent.keyDown(screen.getByRole("switch", { name: "Sound" }), {
+        key: "Escape",
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByRole("switch")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("toggles the real Prevent Invalid Moves switch: the shell state follows, the game never moves", () => {
+    const { telescope } = renderApp(buildAppState());
+    const emissions: AppState[] = [];
+    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Prevent Invalid Moves" }),
+    );
+
+    // The toggle committed through the magnified preferences slice, not a
+    // local copy: the shell telescope re-emitted with the field flipped…
+    expect(emissions.at(-1)?.preferences.preventInvalidMoves).toBe(false);
+    // …and nothing else moved — the game kept its reference.
+    expect(emissions.at(-1)?.game).toBe(emissions[0].game);
+    expect(emissions.at(-1)?.preferences.hints).toBe(
+      emissions[0].preferences.hints,
+    );
+
+    // Toggle back on: the value round-trips through the same path.
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Prevent Invalid Moves" }),
+    );
+    expect(emissions.at(-1)?.preferences.preventInvalidMoves).toBe(true);
+    expect(emissions.at(-1)?.game).toBe(emissions[0].game);
+    subscription.unsubscribe();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.12 re-verified through the real §5.8 switch (Phase 16)                   */
+/* -------------------------------------------------------------------------- */
+
+describe("App shell §5.12/§5.8 — Phase 11's invalid-move path, driven by the real Preferences switch (Phase 16)", () => {
+  it("with Prevent Invalid Moves ON (the §4.2 default), an illegal in-bounds drop opens the 'Invalid move!' Snackbar", () => {
+    const initial = buildAppState();
+    const { telescope } = renderApp(initial);
+    const [piece, [row, col]] = pickIllegalPlacement(initial.game);
+
+    // Exactly what `useAppActions.onDragEnd` commits on a rejected drop:
+    // `resolveDragDrop` through the shared shell telescope.
+    act(() => {
+      telescope.update(
+        resolveDragDrop(initial, {
+          activeId: trayPieceDraggableId(piece),
+          overId: cellDroppableId(row, col),
+        }),
+      );
+    });
+
+    // §5.12: the error alert is open (and, as Phase 11 established, the game
+    // kept its reference — the rejection touched only the feedback flag).
+    expect(screen.getByText("Invalid move!")).toBeTruthy();
+  });
+
+  it("with Prevent Invalid Moves toggled OFF through the real Switch, the same illegal drop applies (recorded `isValid: false`) and no Snackbar opens", () => {
+    const initial = buildAppState();
+    const { telescope } = renderApp(initial);
+    const [piece, [row, col]] = pickIllegalPlacement(initial.game);
+    const emissions: AppState[] = [];
+    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+    // Toggle the real switch off in the drawer.
+    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Prevent Invalid Moves" }),
+    );
+    const toggled = emissions.at(-1);
+    if (toggled === undefined)
+      throw new Error("fixture: the toggle emission is missing (impossible)");
+    expect(toggled.preferences.preventInvalidMoves).toBe(false);
+
+    // The same illegal drop, now committed against the toggled state.
+    act(() => {
+      telescope.update(
+        resolveDragDrop(toggled, {
+          activeId: trayPieceDraggableId(piece),
+          overId: cellDroppableId(row, col),
+        }),
+      );
+    });
+
+    // §3.5 step 2 with `preventInvalidMoves` false: `placePiece` no longer
+    // throws, so the §5.12 feedback never opens…
+    expect(screen.queryByText("Invalid move!")).toBeNull();
+    // …and the move is applied and recorded with `isValid: false` — the
+    // switch's effect on the engine, end to end.
+    const applied = emissions.at(-1);
+    if (applied === undefined)
+      throw new Error("fixture: the drop emission is missing (impossible)");
+    expect(applied.game).not.toBe(toggled.game);
+    expect(applied.game.placedCells).toHaveLength(1);
+    expect(applied.game.placedCells[0].isValid).toBe(false);
+    expect(applied.preferences).toBe(toggled.preferences);
+    subscription.unsubscribe();
   });
 });

@@ -52,6 +52,22 @@ export interface AppActions {
    * while the tray is empty and not dismissed.
    */
   readonly onGameFinishedDialogClose: () => void;
+  /**
+   * §5.8 (Phase 16): the top-bar Preferences button's (gear icon's) click —
+   * toggles the preferences drawer open/closed. Like the finished-game
+   * Dialog's dismissal, this does not commit through the telescope: the
+   * open/closed flag is the shell's local UI state (Phase 16's `useAppState`
+   * tier), so the action just flips it.
+   */
+  readonly onPreferencesToggle: () => void;
+  /**
+   * §5.8 (Phase 16): the preferences drawer's dismissal — MUI fires its
+   * `onClose` as `(event, reason)` on both the backdrop-click and
+   * Escape-key paths, and the committed next state does not depend on which
+   * source fired, so this is zero-argument on purpose: it just closes the
+   * drawer through the state tier's setter.
+   */
+  readonly onPreferencesDrawerClose: () => void;
 }
 
 /**
@@ -88,6 +104,12 @@ export interface AppActions {
  * (the `useAppState` tier's `dialogDismissed`) rather than committing through the
  * telescope, because the dismissal is component-local UI state, not `AppState` — the
  * Dialog's open state stays a pure derivation (tray empty AND not dismissed).
+ *
+ * Phase 16 adds the preferences drawer's open/close (§5.8, `onPreferencesToggle` /
+ * `onPreferencesDrawerClose`): the gear icon toggles the shell's local
+ * `preferencesDrawerOpen` flag (the `useAppState` tier) and the drawer's own
+ * `onClose` (backdrop click / Escape) closes it — the same local-UI-state shape as
+ * the finished-game Dialog's dismissal, never a telescope write.
  *
  * This hook therefore takes the state tier's internal shape (`AppInternalState`)
  * alongside the telescoped props: the orchestrator (`useAppViewModel`) creates it
@@ -178,6 +200,20 @@ export function useAppActions(
     internal.setDialogDismissed(true);
   }, [internal]);
 
+  // §5.8 (Phase 16): the gear icon's toggle — flip the state tier's local
+  // drawer flag; a second click while open closes it (the drawer's own
+  // `onClose` covers the backdrop/Escape paths).
+  const onPreferencesToggle = useCallback(() => {
+    internal.setPreferencesDrawerOpen(!internal.preferencesDrawerOpen);
+  }, [internal]);
+
+  // §5.8 (Phase 16): the drawer's dismissal (MUI's `onClose` — backdrop click
+  // or Escape). The only commit is the local flag itself, as with the
+  // finished-game Dialog's dismissal above.
+  const onPreferencesDrawerClose = useCallback(() => {
+    internal.setPreferencesDrawerOpen(false);
+  }, [internal]);
+
   useDndMonitor({ onDragStart, onDragOver, onDragEnd, onDragCancel });
 
   return {
@@ -187,5 +223,7 @@ export function useAppActions(
     onDragCancel,
     onInvalidMoveSnackbarClose,
     onGameFinishedDialogClose,
+    onPreferencesToggle,
+    onPreferencesDrawerClose,
   };
 }
