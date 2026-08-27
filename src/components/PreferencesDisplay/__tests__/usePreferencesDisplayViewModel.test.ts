@@ -59,7 +59,7 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
     expect(first.options).toEqual(PIECE_TYPE_OPTIONS);
 
     // Rows 2–9: the 8 switches, §5.8 order, §5.8 labels, §4.2 default values.
-    expect(rest.map((row) => row.kind)).toEqual(Array(8).fill("switch"));
+    expect(rest.map((row) => row.kind)).toEqual(new Array(8).fill("switch"));
     expect(rest.map((row) => row.label)).toEqual([
       "Hint Fit Piece Count",
       "Hint Fit Piece Unique Cell",
