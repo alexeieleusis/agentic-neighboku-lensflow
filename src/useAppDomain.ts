@@ -17,8 +17,15 @@ import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import type { Piece } from "./game/entities";
 import { isSamePiece } from "./game/entities";
-import { cellIndex, placePiece, stateIsValid } from "./game/gameBuilder.ts";
+import { buildBoard } from "./game/boardBuilder.ts";
+import {
+  cellIndex,
+  placePiece,
+  stateIsValid,
+  unfoldGame,
+} from "./game/gameBuilder.ts";
 import type { Game } from "./game/gameBuilder.ts";
+import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
 
 /**
  * §5.6 / Phase 8 — the shell's pure tier (requirements §7.2.1): no React, no telescope
@@ -448,4 +455,89 @@ function pieceTypeOr(fallback: PieceType, value: unknown): PieceType {
   return (PIECE_TYPES as readonly unknown[]).includes(value)
     ? (value as PieceType)
     : fallback;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 17 — §5.9/§4.1 New Game panel                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * §5.9 / Phase 17: the App → `NewGamePanel` slice — the shell's §4.2
+ * `scalars` (the board builder's `size`/`dimension`/`base` inputs) plus the
+ * §5.13/§5.9 game clock origin. Focused arguments, like the other slice
+ * builders (`buildBoardDisplayState`, `buildAvailablePiecesTrayState`): the
+ * two shell fields the slice actually reads, not a copy of `AppState`.
+ */
+export function buildNewGamePanelState(state: AppState): NewGamePanelState {
+  return {
+    size: state.preferences.scalars.size,
+    dimension: state.preferences.scalars.dimension,
+    base: state.preferences.scalars.base,
+    startTime: state.gamePlay.startTime,
+  };
+}
+
+/**
+ * §5.9 / Phase 17: the New Game panel's Start commit, as a pure state
+ * transform: the next `AppState` after starting a fresh game with the
+ * panel's selected `size` and `dimension`:
+ *
+ *   - rebuild the board from the shell's `base` and the selected
+ *     `size`/`dimension` (Phase 2's `buildBoard`) — §4.1: `base` is not
+ *     changed by the size selector, so it is read from the shell's
+ *     preferences, never from the selection;
+ *   - unfold a fresh puzzle (Phase 3's `unfoldGame`), seeding the move
+ *     engine's narrow `GamePreferences` from the shell's LIVE
+ *     `preventInvalidMoves` preference — exactly as `main.tsx`'s initial
+ *     build and `resolveDragDrop`'s drop path do;
+ *   - reset `gamePlay.startTime` to `now` (§5.9: the elapsed-time origin
+ *     the finished-game Dialog measures from, §5.13);
+ *   - record the selected scalars on `preferences.scalars` (so the running
+ *     game and the §4.3 persisted preferences agree), leaving every other
+ *     preference field on its own reference;
+ *   - close the New Game drawer (§5.9 "and closes the panel") — the flag is
+ *     shell-owned `AppState`, so the panel's single telescope write moves
+ *     it.
+ *
+ * `now` is injected, not read: the fresh `Date.now()` lives in the panel's
+ * action tier (`useNewGamePanelActions`), keeping this function total and
+ * testable with a fixed clock, the same way `formatElapsed` receives its
+ * duration.
+ *
+ * The input state is not mutated: the new `game`/`preferences`/`gamePlay`
+ * objects are fresh; every untouched field (`dragHint`,
+ * `invalidMoveSnackbarOpen`, …) keeps its reference.
+ */
+export function startNewGame(
+  state: AppState,
+  size: number,
+  dimension: number,
+  now: number,
+): AppState {
+  const base = state.preferences.scalars.base;
+  const board = buildBoard(size, dimension, base);
+  return {
+    ...state,
+    game: unfoldGame(board, {
+      preventInvalidMoves: state.preferences.preventInvalidMoves,
+    }),
+    preferences: {
+      ...state.preferences,
+      scalars: { ...state.preferences.scalars, size, dimension },
+    },
+    gamePlay: { startTime: now },
+    newGameDrawerOpen: false,
+  };
+}
+
+/**
+ * §5.9 / Phase 17: the New Game drawer's open-state setter — the top-bar
+ * RestartAlt icon's toggle (`open === true`) and the drawer's own
+ * dismissal (backdrop click / Escape, `open === false`) both commit through
+ * the shell telescope with this function. No-op (input reference back, no
+ * stream re-emission) when the drawer is already in the requested state.
+ */
+export function setNewGameDrawerOpen(state: AppState, open: boolean): AppState {
+  if (state.newGameDrawerOpen === open) return state;
+  return { ...state, newGameDrawerOpen: open };
 }

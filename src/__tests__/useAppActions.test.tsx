@@ -43,6 +43,7 @@ function buildState(preventInvalidMoves = true, fitOnDrag = false): AppState {
     gamePlay: { startTime: 0 },
     invalidMoveSnackbarOpen: false,
     dragHint: "None",
+    newGameDrawerOpen: false,
   };
 }
 
@@ -493,5 +494,61 @@ describe("useAppActions (§5.6 / Phase 14 drag-fit hint lifecycle)", () => {
     expect(emissions[3].dragHint).toBe("Ok");
     expect(emissions[4].game).toBe(emissions[3].game);
     expect(emissions[4].dragHint).toBe("None");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.9 / Phase 17 — the New Game drawer's open/close                          */
+/* -------------------------------------------------------------------------- */
+
+describe("useAppActions (§5.9 / Phase 17 New Game drawer open/close)", () => {
+  it("onNewGameToggle opens a closed drawer through the shell telescope — one emission, game untouched", () => {
+    const { state, actions, emissions, unsubscribe } = dragEndHarness();
+
+    actions.onNewGameToggle();
+    unsubscribe();
+
+    expect(emissions).toHaveLength(2);
+    expect(emissions[1].newGameDrawerOpen).toBe(true);
+    expect(emissions[1].game).toBe(state.game);
+    expect(emissions[1].preferences).toBe(state.preferences);
+  });
+
+  it("onNewGameToggle closes an open drawer (re-rendered against the open state first, as in production)", () => {
+    const harness = dragEndHarness();
+
+    harness.actions.onNewGameToggle(); // open
+    const opened = harness.emissions.at(-1);
+    if (opened === undefined)
+      throw new Error("fixture: the open emission is missing (impossible)");
+    harness.rerender(opened);
+    harness.actions.onNewGameToggle(); // close
+    harness.unsubscribe();
+
+    expect(harness.emissions).toHaveLength(3);
+    expect(harness.emissions[2].newGameDrawerOpen).toBe(false);
+    expect(harness.emissions[2].game).toBe(harness.state.game);
+  });
+
+  it("onNewGameDrawerClose closes an open drawer through the shell telescope, and is a no-op when the drawer is already closed", () => {
+    const harness = dragEndHarness();
+
+    // Already closed: the pure `setNewGameDrawerOpen` returns the input
+    // reference, so the distinctUntilChanged'd stream re-emits nothing.
+    harness.actions.onNewGameDrawerClose();
+    expect(harness.emissions).toHaveLength(1);
+    expect(harness.emissions[0]).toBe(harness.state);
+
+    harness.actions.onNewGameToggle(); // open
+    const opened = harness.emissions.at(-1);
+    if (opened === undefined)
+      throw new Error("fixture: the open emission is missing (impossible)");
+    harness.rerender(opened);
+    harness.actions.onNewGameDrawerClose();
+    harness.unsubscribe();
+
+    expect(harness.emissions).toHaveLength(3);
+    expect(harness.emissions[2].newGameDrawerOpen).toBe(false);
+    expect(harness.emissions[2].game).toBe(harness.state.game);
   });
 });

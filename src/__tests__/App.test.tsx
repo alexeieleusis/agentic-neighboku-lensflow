@@ -82,6 +82,7 @@ function buildAppState(game: Game = buildFreshGame()): AppState {
     gamePlay: { startTime: Date.now() },
     invalidMoveSnackbarOpen: false,
     dragHint: "None",
+    newGameDrawerOpen: false,
   };
 }
 
@@ -690,5 +691,261 @@ describe("App shell §5.12/§5.8 — Phase 11's invalid-move path, driven by the
     expect(applied.game.placedCells[0].isValid).toBe(false);
     expect(applied.preferences).toBe(toggled.preferences);
     subscription.unsubscribe();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.9 New Game drawer (Phase 17)                                             */
+/* -------------------------------------------------------------------------- */
+
+describe("App shell §5.9 — New Game drawer (Phase 17)", () => {
+  it("starts closed; the RestartAlt icon opens it with the select defaulting to §5.9's 8×8 and a Start button", () => {
+    renderApp(buildAppState());
+
+    // Closed: a closed MUI Modal (the Drawer's root) renders nothing at all,
+    // so the panel's controls simply are not in the DOM.
+    expect(screen.queryByRole("combobox")).toBeNull();
+    const newGame = screen.getByRole("button", { name: "New Game" });
+    expect(newGame.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(newGame);
+
+    // §5.9: the panel's two controls — one Board Size select, defaulting to
+    // 8×8 on first open, and the Start button.
+    const select = screen.getByRole("combobox");
+    expect(select.textContent).toBe("8×8");
+    expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+    // The open state is announced to assistive tech. While the drawer (a
+    // MUI Modal) is open, the background content — the top bar included — is
+    // `aria-hidden` by design, so the button is only reachable with
+    // `hidden: true` from here on (the Phase 16 drawer's convention).
+    expect(
+      screen
+        .getByRole("button", { name: "New Game", hidden: true })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("toggling the drawer open and back moves only `newGameDrawerOpen`: one emission each way, the game keeps its reference", () => {
+    vi.useFakeTimers();
+    try {
+      const { telescope } = renderApp(buildAppState());
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+      expect(emissions.at(-1)?.newGameDrawerOpen).toBe(true);
+      expect(emissions.at(-1)?.game).toBe(emissions[0].game);
+      expect(emissions.at(-1)?.preferences).toBe(emissions[0].preferences);
+
+      // The RestartAlt icon again (now in the a11y-hidden background —
+      // `hidden: true`, as the open-drawer assertion above notes): the
+      // shell's toggle action flips the drawer closed…
+      fireEvent.click(
+        screen.getByRole("button", { name: "New Game", hidden: true }),
+      );
+      expect(emissions.at(-1)?.newGameDrawerOpen).toBe(false);
+      expect(emissions.at(-1)?.game).toBe(emissions[0].game);
+      // MUI settles the Drawer's exit transition on its own timer (the
+      // Phase 15/16 convention), so advance before asserting the DOM: the
+      // panel's controls unmount only once that transition completes.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByRole("combobox")).toBeNull();
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes on Escape (the drawer's own dismissal), with the game untouched", () => {
+    vi.useFakeTimers();
+    try {
+      const { telescope } = renderApp(buildAppState());
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+      expect(screen.getByRole("combobox")).toBeTruthy();
+
+      // The Phase 15/16 dismissal convention: Escape on the drawer's
+      // content (MUI's Modal listens on its own root, where the keystroke
+      // bubbles up — not on `document`), then let MUI settle the Drawer's
+      // exit transition on its own timer.
+      fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByRole("combobox")).toBeNull();
+      expect(emissions.at(-1)?.newGameDrawerOpen).toBe(false);
+      expect(emissions.at(-1)?.game).toBe(emissions[0].game);
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Start (at the §5.9 default 8×8) rebuilds the board, unfolds a fresh puzzle, resets `gamePlay.startTime`, and closes the panel — the §5.9 state transition end to end", () => {
+    vi.useFakeTimers();
+    try {
+      const initial = buildAppState();
+      const { telescope } = renderApp(initial);
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+      const before = Date.now();
+
+      fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+      // §5.9's first-open default: 8×8 — Start it as-is.
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+      // Replay + the open toggle + the Start commit.
+      expect(emissions).toHaveLength(3);
+      const next = emissions.at(-1);
+      if (next === undefined)
+        throw new Error("fixture: the Start emission is missing (impossible)");
+      // §5.9 "and closes the panel": the drawer flag moved with the commit.
+      expect(next.newGameDrawerOpen).toBe(false);
+      // §5.9: a real, freshly-unfolded game at the selected size (Phase 2's
+      // `buildBoard` + Phase 3's `unfoldGame` through the slice's lens
+      // setter) — a new reference, 8×8, an empty move history, a tray that
+      // holds pieces.
+      expect(next.game).not.toBe(initial.game);
+      expect(next.game.size).toBe(8);
+      expect(next.game.placedCells).toHaveLength(0);
+      expect(next.game.availablePieces.size).toBeGreaterThan(0);
+      // The selected scalars land on the preferences — §4.1's `base`
+      // untouched, the hint surfaces' references intact (a minimal write).
+      expect(next.preferences.scalars).toEqual({
+        base: 3,
+        dimension: 3,
+        size: 8,
+      });
+      expect(next.preferences.hints).toBe(initial.preferences.hints);
+      // §5.9: the clock origin reset to a fresh `Date.now()` (the
+      // finished-game Dialog's elapsed string, §5.13, now measures from
+      // here, not from the shell's initial `gamePlay.startTime`).
+      expect(next.gamePlay.startTime).toBeGreaterThanOrEqual(before);
+      expect(next.gamePlay.startTime).toBeLessThanOrEqual(Date.now());
+      expect(next.gamePlay).not.toBe(initial.gamePlay);
+
+      // MUI settles the Drawer's exit transition on its own timer (the
+      // Phase 15/16 convention), so advance before asserting the DOM: the
+      // panel's controls unmount, and the top bar's `aria-hidden` lifts,
+      // only once that transition completes.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByRole("combobox")).toBeNull();
+      expect(
+        screen
+          .getByRole("button", { name: "New Game" })
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a size selected before Start rebuilds the board at that size: 6×6 keeps the shell's dimension (size < 8: §4.1 'left unchanged')", () => {
+    const initial = buildAppState();
+    const { telescope } = renderApp(initial);
+    const emissions: AppState[] = [];
+    const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+    fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+    // Open the MUI Select (v9's non-native Select opens on the display
+    // node's mousedown, not click) and pick 6×6 — the option's click
+    // commits the value through the panel's `onSizeChange`: local state,
+    // no emission yet.
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "6×6" }));
+    expect(emissions).toHaveLength(2); // replay + the open toggle only
+    expect(screen.getByRole("combobox").textContent).toBe("6×6");
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    const next = emissions.at(-1);
+    if (next === undefined)
+      throw new Error("fixture: the Start emission is missing (impossible)");
+    expect(next.game.size).toBe(6);
+    expect(next.game).not.toBe(initial.game);
+    expect(next.game.placedCells).toHaveLength(0);
+    // §4.1: 6 < 8 — the dimension is left unchanged from the shell's 3.
+    expect(next.preferences.scalars).toEqual({
+      base: 3,
+      dimension: 3,
+      size: 6,
+    });
+    expect(next.newGameDrawerOpen).toBe(false);
+    subscription.unsubscribe();
+  });
+
+  it("applies §4.1's asymmetric dimension rule end to end: a shell holding dimension 2 keeps it for 4×4, and a size >= 8 forces it to 3", () => {
+    vi.useFakeTimers();
+    try {
+      // A shell whose current scalars hold dimension 2 — the §4.1 "no prior
+      // value" default — so the size < 8 half of the rule has a value other
+      // than 3 to leave "unchanged".
+      const base = buildAppState();
+      const initial: AppState = {
+        ...base,
+        preferences: {
+          ...base.preferences,
+          scalars: { ...base.preferences.scalars, dimension: 2 },
+        },
+      };
+      const { telescope } = renderApp(initial);
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      // 4×4: §4.1's "left unchanged" — the held dimension 2 survives.
+      fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+      fireEvent.mouseDown(screen.getByRole("combobox"));
+      fireEvent.click(screen.getByRole("option", { name: "4×4" }));
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      let next = emissions.at(-1);
+      if (next === undefined)
+        throw new Error("fixture: the first Start emission is missing");
+      expect(next.game.size).toBe(4);
+      expect(next.preferences.scalars).toEqual({
+        base: 3, // §4.1: base never changes
+        dimension: 2,
+        size: 4,
+      });
+      expect(next.newGameDrawerOpen).toBe(false);
+      // MUI settles the Drawer's exit transition on its own timer (the
+      // Phase 15/16 convention), so advance before the top bar's RestartAlt
+      // icon is reachable again (its `aria-hidden` lifts with the transition).
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      // The drawer re-opened fresh: the select re-defaults to 8×8 and re-reads
+      // the (now 2) dimension from the new slice. 12×12 (≥ 8): §4.1 forces
+      // the dimension to 3. (16×16 exercises the same `size >= 8` branch but
+      // is not driven end to end here: at the shell's base 3, Phase 2's
+      // generator dead-ends 16×16 builds far more often than its §3.1
+      // retry cap absorbs — a generator property, not a panel one; the
+      // 16×16 rule itself is covered by the pure domain tests.)
+      fireEvent.click(screen.getByRole("button", { name: "New Game" }));
+      expect(screen.getByRole("combobox").textContent).toBe("8×8");
+      fireEvent.mouseDown(screen.getByRole("combobox"));
+      fireEvent.click(screen.getByRole("option", { name: "12×12" }));
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      next = emissions.at(-1);
+      if (next === undefined)
+        throw new Error("fixture: the second Start emission is missing");
+      expect(next.game.size).toBe(12);
+      expect(next.preferences.scalars).toEqual({
+        base: 3,
+        dimension: 3,
+        size: 12,
+      });
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

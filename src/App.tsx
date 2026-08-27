@@ -39,6 +39,8 @@ import { DragFitHintIcon } from "./components/DragFitHintIcon/DragFitHintIcon.ts
 import { PreferencesDisplay } from "./components/PreferencesDisplay/PreferencesDisplay.tsx";
 import { SolvabilityIcon } from "./components/SolvabilityIcon/SolvabilityIcon.tsx";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
+import { NewGamePanel } from "./components/NewGamePanel/NewGamePanel.tsx";
+import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
 
 /**
  * Root application shell (requirements §5.1) and the shared shell-level `DndContext`
@@ -188,6 +190,8 @@ function RenderApp(props: {
         solvability={viewModel.solvability}
         preferencesDrawerOpen={viewModel.preferencesDrawerOpen}
         onPreferencesToggle={viewModel.onPreferencesToggle}
+        newGameDrawerOpen={viewModel.newGameDrawerOpen}
+        onNewGameToggle={viewModel.onNewGameToggle}
       />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar
@@ -204,6 +208,11 @@ function RenderApp(props: {
         open={viewModel.preferencesDrawerOpen}
         onClose={viewModel.onPreferencesDrawerClose}
         preferences={viewModel.preferences}
+      />
+      <RenderNewGameDrawer
+        open={viewModel.newGameDrawerOpen}
+        onClose={viewModel.onNewGameDrawerClose}
+        newGame={viewModel.newGame}
       />
     </Stack>
   );
@@ -226,8 +235,9 @@ function RenderApp(props: {
  * from it; the §3.6 solvability result and the §4.2 preference are derived upstream
  * in the shell and passed down through that slice, never recomputed in this bar. The
  * Preferences button (Phase 16) toggles the bottom preferences drawer; the New Game
- * (Phase 17) and Help buttons are still inert placeholders; the Undo button (Phase
- * 10) is derived from state.
+ * button (Phase 17) toggles the bottom New Game drawer the same way; the Help button
+ * is still an inert placeholder (Phase 18); the Undo button (Phase 10) is derived
+ * from state.
  */
 function RenderTopBar(props: {
   readonly undo: TelescopedProps<UndoButtonState>;
@@ -235,6 +245,8 @@ function RenderTopBar(props: {
   readonly solvability: TelescopedProps<SolvabilityIconState>;
   readonly preferencesDrawerOpen: boolean;
   readonly onPreferencesToggle: () => void;
+  readonly newGameDrawerOpen: boolean;
+  readonly onNewGameToggle: () => void;
 }): React.ReactElement {
   const {
     undo,
@@ -242,6 +254,8 @@ function RenderTopBar(props: {
     solvability,
     preferencesDrawerOpen,
     onPreferencesToggle,
+    newGameDrawerOpen,
+    onNewGameToggle,
   } = props;
 
   return (
@@ -273,8 +287,22 @@ function RenderTopBar(props: {
               <SettingsIcon />
             </IconButton>
           </Tooltip>
+          {/*
+           * Phase 17: the New Game slot is now wired — the RestartAlt icon
+           * toggles the bottom New Game drawer (the `RenderNewGameDrawer`
+           * overlay below, §5.9) through the shell's action tier. Unlike the
+           * Phase 16 Preferences button, its open state is shell-owned
+           * `AppState` (the panel's Start commit also writes it, §5.9),
+           * announced to assistive tech via `aria-expanded`.
+           */}
           <Tooltip title="New Game">
-            <IconButton size="small" aria-label="New Game">
+            <IconButton
+              size="small"
+              aria-label="New Game"
+              aria-haspopup="dialog"
+              aria-expanded={newGameDrawerOpen}
+              onClick={onNewGameToggle}
+            >
               <RestartAltIcon />
             </IconButton>
           </Tooltip>
@@ -422,6 +450,37 @@ function RenderPreferencesDrawer(props: {
       slotProps={{ paper: { sx: { maxHeight: "80vh", overflowY: "auto" } } }}
     >
       <PreferencesDisplay {...preferences} />
+    </Drawer>
+  );
+}
+
+/**
+ * §5.9 (Phase 17): the bottom New Game drawer. `open` is shell-owned
+ * `AppState` (`newGameDrawerOpen`) — not local UI state like the Phase 16
+ * preferences drawer's flag — because the panel's Start commit writes it
+ * too (§5.9 "and closes the panel" is part of the panel's single
+ * slice-telescope write), so this function owns no state of its own: a MUI
+ * `Drawer` anchored to the bottom (§5.9) whose content is the
+ * `NewGamePanel` component proper, handed the §4.1/§5.9 slice as its own
+ * magnified telescope (`App` → `NewGamePanel`, §7.2) — the Board Size
+ * select reads and the Start button commits through that slice directly,
+ * never through shell callbacks. Dismissal (backdrop click / Escape) fires
+ * MUI's `onClose`, the shell's `onNewGameDrawerClose` action.
+ */
+function RenderNewGameDrawer(props: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly newGame: TelescopedProps<NewGamePanelState>;
+}): React.ReactElement {
+  const { open, onClose, newGame } = props;
+  return (
+    <Drawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      slotProps={{ paper: { sx: { maxHeight: "80vh", overflowY: "auto" } } }}
+    >
+      <NewGamePanel {...newGame} />
     </Drawer>
   );
 }

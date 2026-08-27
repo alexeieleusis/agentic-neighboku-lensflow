@@ -16,6 +16,7 @@ import {
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  buildNewGamePanelState,
   buildSolvabilityIconState,
   closeInvalidMoveSnackbar,
   formatElapsed,
@@ -24,6 +25,8 @@ import {
   resolveDragDrop,
   resolveDragHint,
   resolveTrayPiece,
+  setNewGameDrawerOpen,
+  startNewGame,
   type JsonValue,
 } from "../useAppDomain";
 import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
@@ -61,6 +64,7 @@ function buildState(game: Game): AppState {
     gamePlay: { startTime: 0 },
     invalidMoveSnackbarOpen: false,
     dragHint: "None",
+    newGameDrawerOpen: false,
   };
 }
 
@@ -735,6 +739,138 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
     const snapshot = JSON.stringify(PREFERENCE_DEFAULTS);
     mergeStoredPreferences(PREFERENCE_DEFAULTS, { sound: false });
     expect(JSON.stringify(PREFERENCE_DEFAULTS)).toBe(snapshot);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase 17 — §5.9/§4.1 New Game panel                                        */
+/* -------------------------------------------------------------------------- */
+
+describe("buildNewGamePanelState (§5.9 / Phase 17 App → NewGamePanel slice)", () => {
+  it("projects the shell's §4.2 scalars and the game clock origin, and nothing else", () => {
+    const state = buildState(buildGame());
+    expect(buildNewGamePanelState(state)).toEqual({
+      size: 4,
+      dimension: 3,
+      base: 3,
+      startTime: 0,
+    });
+    // The slice is a fresh object (the memo's input is a fresh snapshot),
+    // not a reference into `AppState.preferences.scalars`.
+    expect(buildNewGamePanelState(state)).not.toBe(state.preferences.scalars);
+  });
+
+  it("tracks the shell state field by field", () => {
+    const state = buildState(buildGame());
+    const moved = {
+      ...state,
+      preferences: {
+        ...state.preferences,
+        scalars: {
+          ...state.preferences.scalars,
+          size: 9,
+          dimension: 3,
+          base: 4,
+        },
+      },
+      gamePlay: { startTime: 123 },
+    };
+    expect(buildNewGamePanelState(moved)).toEqual({
+      size: 9,
+      dimension: 3,
+      base: 4,
+      startTime: 123,
+    });
+  });
+});
+
+describe("startNewGame (§5.9 / Phase 17 Start commit)", () => {
+  it("rebuilds the board with the selected size/dimension and the shell's own base, unfolds a fresh puzzle, and seeds the narrow game preferences from the live shell preference", () => {
+    const state = buildState(buildGame(false));
+    expect(state.preferences.preventInvalidMoves).toBe(false);
+
+    const next = startNewGame(state, 8, 3, 1_000_000);
+
+    // §5.9: a real, freshly-unfolded game (Phase 2 + Phase 3) — a new
+    // reference, the new size, a fully-filled-then-blanked board with an
+    // empty move history, and a tray that holds pieces.
+    expect(next.game).not.toBe(state.game);
+    expect(next.game.size).toBe(8);
+    expect(next.game.placedCells).toHaveLength(0);
+    expect(next.game.availablePieces.size).toBeGreaterThan(0);
+    // The narrow engine preference mirrors the shell's LIVE value (§5.8),
+    // exactly as `main.tsx`'s initial build and `resolveDragDrop` do.
+    expect(next.game.preferences.preventInvalidMoves).toBe(false);
+    // Every §3.6 condition holds on a fresh unfold: the position is solvable.
+    expect(stateIsValid(next.game)).toBe(true);
+    // §4.1: `base` is not changed by the size selector — the scalars carry
+    // the shell's base (3 in this fixture) alongside the selected size/dimension.
+    expect(next.preferences.scalars).toEqual({
+      base: 3,
+      dimension: 3,
+      size: 8,
+    });
+  });
+
+  it("leaves `base` untouched even when the selection would change it: the commit's base comes from the shell, never from the panel", () => {
+    const state = buildState(buildGame());
+    const next = startNewGame(state, 9, 3, 1_000_000);
+    expect(next.preferences.scalars.base).toBe(3);
+    expect(next.preferences).not.toBe(state.preferences);
+    // Every other preference field keeps its own reference (minimal write).
+    expect(next.preferences.hints).toBe(state.preferences.hints);
+    expect(next.preferences.pieceType).toBe(state.preferences.pieceType);
+  });
+
+  it("resets `gamePlay.startTime` to the injected `now`", () => {
+    const state = buildState(buildGame());
+    const next = startNewGame(state, 4, 3, 987_654);
+    expect(next.gamePlay).toEqual({ startTime: 987_654 });
+    expect(next.gamePlay).not.toBe(state.gamePlay);
+  });
+
+  it("closes the New Game drawer (§5.9 'and closes the panel')", () => {
+    const state = { ...buildState(buildGame()), newGameDrawerOpen: true };
+    const next = startNewGame(state, 6, 3, 1_000_000);
+    expect(next.newGameDrawerOpen).toBe(false);
+  });
+
+  it("does not mutate the input state, and keeps every untouched field on its reference", () => {
+    const state = buildState(buildGame());
+    const snapshot = JSON.stringify(state.preferences.scalars);
+
+    const next = startNewGame(state, 8, 3, 1_000_000);
+
+    expect(JSON.stringify(state.preferences.scalars)).toBe(snapshot);
+    expect(state.preferences.scalars.size).toBe(4);
+    expect(next.dragHint).toBe(state.dragHint);
+    expect(next.invalidMoveSnackbarOpen).toBe(state.invalidMoveSnackbarOpen);
+    expect(next.preferences.hints).toBe(state.preferences.hints);
+  });
+});
+
+describe("setNewGameDrawerOpen (§5.9 / Phase 17 drawer open-state setter)", () => {
+  it("opens a closed drawer: new state object, game reference untouched", () => {
+    const state = buildState(buildGame());
+    const next = setNewGameDrawerOpen(state, true);
+    expect(next).not.toBe(state);
+    expect(next.newGameDrawerOpen).toBe(true);
+    expect(next.game).toBe(state.game);
+    expect(next.preferences).toBe(state.preferences);
+  });
+
+  it("closes an open drawer", () => {
+    const state = { ...buildState(buildGame()), newGameDrawerOpen: true };
+    const next = setNewGameDrawerOpen(state, false);
+    expect(next.newGameDrawerOpen).toBe(false);
+    expect(next.game).toBe(state.game);
+  });
+
+  it("is a no-op when the drawer is already in the requested state (input reference, no re-emission)", () => {
+    const closed = buildState(buildGame());
+    expect(setNewGameDrawerOpen(closed, false)).toBe(closed);
+    const open = { ...closed, newGameDrawerOpen: true };
+    expect(setNewGameDrawerOpen(open, true)).toBe(open);
   });
 });
 

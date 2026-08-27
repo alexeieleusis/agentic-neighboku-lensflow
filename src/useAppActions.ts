@@ -9,6 +9,7 @@ import {
   closeInvalidMoveSnackbar,
   resolveDragDrop,
   resolveDragHint,
+  setNewGameDrawerOpen,
 } from "./useAppDomain.ts";
 import { DRAG_HINT_LENS } from "./useAppViewModel.ts";
 
@@ -68,6 +69,23 @@ export interface AppActions {
    * drawer through the state tier's setter.
    */
   readonly onPreferencesDrawerClose: () => void;
+  /**
+   * §5.9 (Phase 17): the top-bar New Game button's (RestartAlt icon's)
+   * click — toggles the New Game drawer through the shell telescope. The
+   * flag is shell-owned `AppState` (the panel's Start commit also writes
+   * it, §5.9 "closes the panel"), so both directions are telescope writes
+   * via `setNewGameDrawerOpen`, not local-UI-state flips like the Phase 16
+   * preferences drawer.
+   */
+  readonly onNewGameToggle: () => void;
+  /**
+   * §5.9 (Phase 17): the New Game drawer's dismissal — MUI fires its
+   * `onClose` as `(event, reason)` on both the backdrop-click and
+   * Escape-key paths, and the committed next state does not depend on which
+   * source fired, so this is zero-argument on purpose: it just closes the
+   * drawer through the shell telescope.
+   */
+  readonly onNewGameDrawerClose: () => void;
 }
 
 /**
@@ -110,6 +128,15 @@ export interface AppActions {
  * `preferencesDrawerOpen` flag (the `useAppState` tier) and the drawer's own
  * `onClose` (backdrop click / Escape) closes it — the same local-UI-state shape as
  * the finished-game Dialog's dismissal, never a telescope write.
+ *
+ * Phase 17 adds the New Game drawer's open/close (§5.9, `onNewGameToggle` /
+ * `onNewGameDrawerClose`): the RestartAlt icon toggles and the drawer's own
+ * `onClose` (backdrop click / Escape) closes. Unlike the Phase 16 drawer,
+ * BOTH are telescope writes (`setNewGameDrawerOpen` through the shell
+ * telescope), not local-UI-state flips: the panel's Start commit also writes
+ * the flag (§5.9 "and closes the panel" is part of the panel's single
+ * slice-telescope write), so the flag is shell-owned `AppState`
+ * (`newGameDrawerOpen`) rather than `useAppState` local state.
  *
  * This hook therefore takes the state tier's internal shape (`AppInternalState`)
  * alongside the telescoped props: the orchestrator (`useAppViewModel`) creates it
@@ -214,6 +241,20 @@ export function useAppActions(
     internal.setPreferencesDrawerOpen(false);
   }, [internal]);
 
+  // §5.9 (Phase 17): the RestartAlt icon's toggle — the drawer's flag is
+  // shell-owned `AppState` (the panel's Start commit also writes it), so
+  // both directions commit through the shell telescope via the pure
+  // `setNewGameDrawerOpen` (no-op when already in the requested state).
+  const onNewGameToggle = useCallback(() => {
+    telescope.update(setNewGameDrawerOpen(state, !state.newGameDrawerOpen));
+  }, [state, telescope]);
+
+  // §5.9 (Phase 17): the drawer's dismissal (MUI's `onClose` — backdrop
+  // click or Escape), through the shell telescope like the toggle.
+  const onNewGameDrawerClose = useCallback(() => {
+    telescope.update(setNewGameDrawerOpen(state, false));
+  }, [state, telescope]);
+
   useDndMonitor({ onDragStart, onDragOver, onDragEnd, onDragCancel });
 
   return {
@@ -225,5 +266,7 @@ export function useAppActions(
     onGameFinishedDialogClose,
     onPreferencesToggle,
     onPreferencesDrawerClose,
+    onNewGameToggle,
+    onNewGameDrawerClose,
   };
 }
