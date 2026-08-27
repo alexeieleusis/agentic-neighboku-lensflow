@@ -24,6 +24,7 @@ import {
   resolveDragDrop,
   resolveDragHint,
   resolveTrayPiece,
+  type JsonValue,
 } from "../useAppDomain";
 import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 
@@ -676,14 +677,15 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
   });
 
   it("forces the merged `scalars.dimension` to 3 regardless of the stored value (§8.5 — the must-pass quirk)", () => {
-    for (const stored of [
+    const storedBlobs: (JsonValue | undefined)[] = [
       { scalars: { dimension: 5 } },
       { scalars: { dimension: 0 } },
       { scalars: { dimension: "tall" } },
       { scalars: {} },
       {},
       undefined,
-    ]) {
+    ];
+    for (const stored of storedBlobs) {
       expect(
         mergeStoredPreferences(PREFERENCE_DEFAULTS, stored).scalars.dimension,
       ).toBe(3);
@@ -714,6 +716,19 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
     expect(merged.preventInvalidMoves).toBe(true); // "no" is not a boolean
     expect(merged.sound).toBe(true); // null is not a boolean
     expect("stray" in merged).toBe(false);
+  });
+
+  it("passes through any positive integer base/size — the merge is a shape guard, not a range guard", () => {
+    // The merge's contract is type/shape validation only: any positive integer
+    // passes through. The boot-time consequence of a very large value (e.g.
+    // base: 2000 → new Array(2000 ** 3) ≈ 8e9) is handled by main.tsx's
+    // try/catch around buildInitialAppState, which falls back to the §4.2
+    // defaults when the board build fails, so the app always starts.
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      scalars: { base: 2000, size: 6 },
+    });
+    expect(merged.scalars.base).toBe(2000);
+    expect(merged.scalars.size).toBe(6);
   });
 
   it("keeps the defaults object untouched (no mutation of the merge base)", () => {

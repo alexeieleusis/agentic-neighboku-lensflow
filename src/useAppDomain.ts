@@ -343,11 +343,17 @@ export function resolveTrayPiece(
  */
 export function mergeStoredPreferences(
   defaults: AppPreferences,
-  stored: unknown,
+  stored: JsonValue | undefined,
 ): AppPreferences {
-  const s = isPreferencesRecord(stored) ? stored : {};
-  const scalars = isPreferencesRecord(s.scalars) ? s.scalars : {};
-  const hints = isPreferencesRecord(s.hints) ? s.hints : {};
+  const s: Record<string, JsonValue> = isPreferencesRecord(stored)
+    ? stored
+    : {};
+  const scalars: Record<string, JsonValue> = isPreferencesRecord(s.scalars)
+    ? s.scalars
+    : {};
+  const hints: Record<string, JsonValue> = isPreferencesRecord(s.hints)
+    ? s.hints
+    : {};
   return {
     scalars: {
       base: positiveIntOr(defaults.scalars.base, scalars.base),
@@ -389,11 +395,34 @@ export function mergeStoredPreferences(
 }
 
 /**
+ * A JSON value — every shape a parsed `localStorage` blob can carry: `null`,
+ * a boolean, a number, a string, a JSON object (a record of JSON values), or
+ * a JSON array (modeled structurally as a JSON-value sequence with a length).
+ * A missing key is not a JSON value: it surfaces as `undefined` at the
+ * `mergeStoredPreferences` boundary. The recursive members stay inside object
+ * types so the alias never references itself bare (T23 "Circular aliases
+ * without object indirection"). No member can carry a literal-typed
+ * discriminant — a stored blob is exactly what it is — so narrowing happens
+ * through the runtime guards below, not an exhaustiveness switch.
+ */
+// eslint-disable-next-line lensflow/require-union-discriminant
+export type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  // eslint-disable-next-line lensflow/prefer-record-over-index-signature
+  | { [key: string]: JsonValue }
+  | { [index: number]: JsonValue; readonly length: number };
+
+/**
  * A non-null, non-array object — the only shape a stored preferences blob can
  * take and still carry fields; anything else (a missing key, a JSON string or
  * number, `null`, an array) is treated as "no stored preferences".
  */
-function isPreferencesRecord(value: unknown): value is Record<string, unknown> {
+function isPreferencesRecord(
+  value: JsonValue | undefined,
+): value is Record<string, JsonValue> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

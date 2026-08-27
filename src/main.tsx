@@ -13,7 +13,7 @@ import type { AppState, AppPreferences } from "./App.types.ts";
 import { darkTheme } from "./theme.ts";
 import { buildBoard } from "./game/boardBuilder.ts";
 import { unfoldGame, type Game } from "./game/gameBuilder.ts";
-import { mergeStoredPreferences } from "./useAppDomain.ts";
+import { mergeStoredPreferences, type JsonValue } from "./useAppDomain.ts";
 
 /**
  * §4.2 default preferences — the merge base of the load path: every field of a
@@ -51,15 +51,16 @@ const PREFERENCES_STORAGE_KEY = "neighboku-preferences";
  * back to the §4.2 defaults through `mergeStoredPreferences` instead of
  * crashing the app). The only `localStorage` read in the app.
  */
-function readStoredPreferences(): unknown {
+function readStoredPreferences(): JsonValue | undefined {
   try {
     const raw = localStorage.getItem(PREFERENCES_STORAGE_KEY);
     if (raw === null) return undefined;
     // The parse result is `any`; pin it to `unknown` so no caller can trust
-    // its shape without narrowing (`mergeStoredPreferences` does the
-    // narrowing, field by field).
+    // its shape without narrowing. The cast is that single deliberate trust
+    // step into the JSON shapes: `mergeStoredPreferences` re-validates every
+    // field from there, so a malformed blob can never reach the app.
     const stored: unknown = JSON.parse(raw);
-    return stored;
+    return stored as JsonValue | undefined;
   } catch {
     return undefined;
   }
@@ -114,12 +115,23 @@ const initialPreferences = mergeStoredPreferences(
   readStoredPreferences(),
 );
 
+// §4.3: the merge is a shape guard, not a range guard — any positive integer
+// `base`/`size` passes through. A stored value whose `base^dimension` pool
+// allocation or board fill exceeds the runtime's limits throws here; the
+// catch falls back to the §4.2 defaults so the app always starts. The first
+// emission then normalizes the stored blob to the defaults, breaking the
+// self-perpetuating corrupt-blob loop.
+let initialState: AppState;
+try {
+  initialState = buildInitialAppState(initialPreferences);
+} catch {
+  initialState = buildInitialAppState(defaultPreferences);
+}
+
 // §5.1: the root subscribes to the telescope's stream once and re-renders
 // imperatively on every emission. Components below only read the `state` snapshot
 // prop — they never subscribe to a stream themselves.
-const telescope: Telescope<AppState> = Telescope.of(
-  buildInitialAppState(initialPreferences),
-);
+const telescope: Telescope<AppState> = Telescope.of(initialState);
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
 const root = createRoot(rootEl);
