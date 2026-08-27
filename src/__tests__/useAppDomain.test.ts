@@ -656,7 +656,7 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
   });
 
   it("round-trips a full stored object (every field present and well-formed)", () => {
-    const stored: AppPreferences = {
+    const stored = {
       scalars: { base: 4, dimension: 3, size: 8 },
       pieceType: "Faces",
       hints: {
@@ -670,7 +670,7 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
       },
       preventInvalidMoves: false,
       sound: false,
-    };
+    } satisfies AppPreferences;
     const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, stored);
     expect(merged).toEqual(stored);
   });
