@@ -15,7 +15,8 @@ import { ThemeProvider } from "@mui/material/styles";
 import { App } from "../App";
 import type { AppState, AppPreferences } from "../App.types";
 import { buildBoard } from "../game/boardBuilder";
-import { unfoldGame } from "../game/gameBuilder";
+import { unfoldGame, type Game } from "../game/gameBuilder";
+import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 import { darkTheme } from "../theme";
 
 // §5.6/§7.6 sensor wiring: record the props the shell hands its `DndContext`, with the
@@ -64,15 +65,43 @@ const PREFERENCES = {
   sound: false,
 } satisfies AppPreferences;
 
-function buildAppState(): AppState {
+function buildFreshGame(): Game {
+  return unfoldGame(buildBoard(4, 3, 3, 42), {
+    preventInvalidMoves: PREFERENCES.preventInvalidMoves,
+  });
+}
+
+function buildAppState(game: Game = buildFreshGame()): AppState {
   return {
-    game: unfoldGame(buildBoard(4, 3, 3, 42), {
-      preventInvalidMoves: PREFERENCES.preventInvalidMoves,
-    }),
+    game,
     preferences: PREFERENCES,
+    gamePlay: { startTime: Date.now() },
     invalidMoveSnackbarOpen: false,
-    gameFinishedDialogOpen: false,
     dragHint: "None",
+  };
+}
+
+/** The shell state with the §4.2 `hintGameIsSolvable` preference flipped on. */
+function buildAppStateWithHintOn(game: Game = buildFreshGame()): AppState {
+  const state = buildAppState(game);
+  return {
+    ...state,
+    preferences: {
+      ...state.preferences,
+      hints: { ...state.preferences.hints, gameIsSolvable: true },
+    },
+  };
+}
+
+/**
+ * A finished-solvable shell state with the game clock back-dated 2h 2m 15s, so
+ * the success alert's elapsed string is the deterministic `2h 2m 15s` (the
+ * `Date.now()` at the tray-emptying capture minus `gamePlay.startTime`).
+ */
+function buildFinishedSolvableState(): AppState {
+  return {
+    ...buildAppStateWithHintOn(playToCompletion(buildFreshGame())),
+    gamePlay: { startTime: Date.now() - 7_335_000 },
   };
 }
 
@@ -274,6 +303,196 @@ describe("App shell §5.12 — invalid-move feedback (Phase 11)", () => {
       expect(emissions.at(-1)?.invalidMoveSnackbarOpen).toBe(false);
       expect(screen.queryByText("Invalid move!")).toBeNull();
       subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* §5.13 solvability indicator & game-finished dialog (Phase 15)               */
+/* -------------------------------------------------------------------------- */
+
+/** The top-bar solvability indicator, looked up by its announced label. */
+function solvabilityIcon(label: string): SVGElement | null {
+  const svgs = document.querySelectorAll("svg[role='img']");
+  for (const svg of svgs) {
+    if (svg.querySelector("title")?.textContent === label)
+      return svg as SVGElement;
+  }
+  return null;
+}
+
+describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
+  it("shows the happy face when `hintGameIsSolvable` is on and the position is solvable", () => {
+    renderApp(buildAppStateWithHintOn());
+
+    expect(solvabilityIcon("Position is solvable")).not.toBeNull();
+    expect(
+      solvabilityIcon("Position is solvable")?.parentElement?.getAttribute(
+        "aria-live",
+      ),
+    ).toBe("polite");
+    // Exactly one face: the unsolvable icon is absent.
+    expect(solvabilityIcon("No solution exists")).toBeNull();
+  });
+
+  it("shows the sad face when `hintGameIsSolvable` is on and the position is not solvable", () => {
+    renderApp(buildAppStateWithHintOn(buildUnsolvableFinishedGame()));
+
+    expect(solvabilityIcon("No solution exists")).not.toBeNull();
+    expect(
+      solvabilityIcon("No solution exists")?.parentElement?.getAttribute(
+        "aria-live",
+      ),
+    ).toBe("polite");
+    expect(solvabilityIcon("Position is solvable")).toBeNull();
+  });
+
+  it("shows no solvability icon at all when `hintGameIsSolvable` is off, regardless of solvability", () => {
+    // `PREFERENCES` carries `gameIsSolvable: false` (the test default).
+    renderApp(buildAppState(buildUnsolvableFinishedGame()));
+    expect(solvabilityIcon("Position is solvable")).toBeNull();
+    expect(solvabilityIcon("No solution exists")).toBeNull();
+    cleanup();
+    renderApp(buildAppState());
+    expect(solvabilityIcon("Position is solvable")).toBeNull();
+    expect(solvabilityIcon("No solution exists")).toBeNull();
+  });
+});
+
+describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
+  it("stays closed while the tray still holds pieces (including a fresh game start)", () => {
+    renderApp(buildAppStateWithHintOn());
+
+    expect(screen.queryByText("Game finished")).toBeNull();
+  });
+
+  it("opens with the success alert and the `{h}h {m}m {s}s` elapsed string when the tray empties solvable", () => {
+    renderApp(buildFinishedSolvableState());
+
+    expect(screen.getByText("Game finished")).toBeTruthy();
+    // §5.13: the success alert is a success-severity Alert (MUI v9 roots both
+    // severities at `role="alert"`; the severity is the `MuiAlert-colorSuccess`
+    // class) carrying the §5.13 elapsed string — the `Date.now()` at the
+    // tray-emptying capture minus `gamePlay.startTime`, which the fixture
+    // back-dated exactly 2h 2m 15s. Exactly one alert is present, and it is the
+    // success one.
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].className).toContain("MuiAlert-colorSuccess");
+    expect(alerts[0].textContent).toContain("Solved in 2h 2m 15s");
+  });
+
+  it("freezes the elapsed string at the tray-emptying moment — the string does not keep advancing", () => {
+    vi.useFakeTimers();
+    try {
+      // The fixture back-dates `gamePlay.startTime` exactly 2h 2m 15s from the
+      // (mocked) "now", so the value captured when the tray empties is
+      // deterministically `2h 2m 15s`.
+      renderApp(buildFinishedSolvableState());
+
+      expect(screen.getAllByRole("alert")[0].textContent).toContain(
+        "Solved in 2h 2m 15s",
+      );
+
+      // Advance the (mocked) clock 5s while the Dialog is open: a live
+      // `now − startTime` read would advance the string to `2h 2m 20s`. The
+      // §5.13 string must stay static at the captured value.
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getAllByRole("alert")[0].textContent).toContain(
+        "Solved in 2h 2m 15s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens with the failure alert only — no elapsed-time string — when the tray empties unsolvable", () => {
+    renderApp(buildAppStateWithHintOn(buildUnsolvableFinishedGame()));
+
+    expect(screen.getByText("Game finished")).toBeTruthy();
+    // §5.13: the failure alert is an error-severity Alert with no elapsed-time
+    // string.
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].className).toContain("MuiAlert-colorError");
+    expect(alerts[0].textContent).toContain(
+      "No solution exists for this position.",
+    );
+    expect(screen.queryByText(/Solved in/)).toBeNull();
+    // And the top-bar indicator agrees: the sad face.
+    expect(solvabilityIcon("No solution exists")).not.toBeNull();
+  });
+
+  it("dismisses on Escape without any shell-telescope emission, and the top bar stays reachable", () => {
+    vi.useFakeTimers();
+    try {
+      const { telescope } = renderApp(buildFinishedSolvableState());
+      const emissions: AppState[] = [];
+      const subscription = telescope.stream.subscribe((s) => emissions.push(s));
+
+      expect(screen.getByText("Game finished")).toBeTruthy();
+
+      // §5.13 recovery loop: the dismissal is MUI's Escape path → the shell's
+      // `onGameFinishedDialogClose` action → the state tier's local dismissal
+      // flag. No `AppState` write happens, so the shell telescope re-emits
+      // nothing — the dialog's open state is a pure derivation. MUI's Modal
+      // listens for the Escape keydown on its own root element (it bubbles up
+      // from anywhere inside the dialog), not on `document` — so the event is
+      // fired on the dialog's content, the way a user's keystroke would land.
+      fireEvent.keyDown(screen.getByText("Game finished"), { key: "Escape" });
+      // MUI settles the Dialog's exit transition on its own timer (as the
+      // Phase 11 Snackbar test does), so advance before asserting the DOM.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Game finished")).toBeNull();
+      expect(emissions).toHaveLength(1); // only the replayed initial state
+      // The player can now reach the shell's controls (the video's guidance:
+      // "press undo until the happy face reappears").
+      expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("re-opens the next time the tray empties after a dismissal (the dismissal resets when the tray refills)", () => {
+    vi.useFakeTimers();
+    try {
+      const finished = buildFinishedSolvableState();
+      const { telescope } = renderApp(finished);
+
+      expect(screen.getByText("Game finished")).toBeTruthy();
+
+      // Dismiss it (Escape on the dialog's content — MUI listens on the modal
+      // root, where the keystroke bubbles up), and let MUI settle the Dialog's
+      // exit transition (its own timer — the Phase 11 test's convention) so the
+      // assertions below see a fully unmounted dialog, not one mid-exit.
+      fireEvent.keyDown(screen.getByText("Game finished"), { key: "Escape" });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByText("Game finished")).toBeNull();
+
+      // The tray refills — as a Phase 10 undo would — committed through the shell
+      // telescope. The dialog must stay closed with it (tray not empty), and the
+      // dismissal must reset in the state tier's refill effect.
+      act(() => {
+        telescope.update(buildAppStateWithHintOn());
+      });
+      expect(screen.queryByText("Game finished")).toBeNull();
+
+      // And the tray empties again → the dialog opens AGAIN: the earlier
+      // dismissal did not outlive the empty tray it was applied to.
+      act(() => {
+        telescope.update(finished);
+      });
+      expect(screen.getByText("Game finished")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

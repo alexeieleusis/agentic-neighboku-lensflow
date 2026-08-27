@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { DndContext } from "@dnd-kit/core";
 import type {
@@ -16,6 +16,7 @@ import { trayPieceDraggableId } from "../components/DraggablePiece/useDraggableP
 import { buildBoard } from "../game/boardBuilder";
 import { unfoldGame, type Game } from "../game/gameBuilder";
 import { useAppActions } from "../useAppActions";
+import type { AppInternalState } from "../useAppState";
 
 function buildState(preventInvalidMoves = true, fitOnDrag = false): AppState {
   const game: Game = unfoldGame(buildBoard(4, 3, 3, 42), {
@@ -38,9 +39,28 @@ function buildState(preventInvalidMoves = true, fitOnDrag = false): AppState {
       preventInvalidMoves,
       sound: false,
     },
+    // Inert placeholder: the action tier under test never reads the clock.
+    gamePlay: { startTime: 0 },
     invalidMoveSnackbarOpen: false,
-    gameFinishedDialogOpen: false,
     dragHint: "None",
+  };
+}
+
+/**
+ * A state-tier internal shape for exercising `useAppActions` in isolation: the
+ * orchestrator (`useAppViewModel`) normally creates this via `useAppState`, but
+ * the action tier only needs its fields by value, so a plain fixture stands in.
+ */
+function buildInternal(
+  overrides: Partial<AppInternalState> = {},
+): AppInternalState {
+  return {
+    trayEmpty: false,
+    finishedElapsedMs: null,
+    solvable: true,
+    dialogDismissed: false,
+    setDialogDismissed: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -147,14 +167,18 @@ function dndWrapper({ children }: { children: React.ReactNode }) {
  * the emission and the hook re-runs with the new state (fresh action closures) —
  * call it between commits that build on a previous one.
  */
-function dragEndHarness(preventInvalidMoves = true, fitOnDrag = false) {
+function dragEndHarness(
+  preventInvalidMoves = true,
+  fitOnDrag = false,
+  internal: AppInternalState = buildInternal(),
+) {
   const state = buildState(preventInvalidMoves, fitOnDrag);
   const [piece, placement] = pickLegalPlacement(state.game);
   const telescope = Telescope.of(state);
   const emissions: AppState[] = [];
 
   const { result, rerender } = renderHook(
-    (s: AppState) => useAppActions({ state: s, telescope }),
+    (s: AppState) => useAppActions({ state: s, telescope }, internal),
     { wrapper: dndWrapper, initialProps: state },
   );
   const subscription = telescope.stream.subscribe((s) => emissions.push(s));
@@ -370,6 +394,26 @@ describe("useAppActions (§5.6 / Phase 14 drag-fit hint lifecycle)", () => {
     expect(emissions.at(-1)?.dragHint).toBe("None");
     // A cancelled drag places nothing: the engine state is the very same object.
     expect(emissions.at(-1)?.game).toBe(harness.state.game);
+  });
+
+  it("onGameFinishedDialogClose (§5.13 / Phase 15) commits the dismissal through the state tier's setter — and nothing else", () => {
+    const internal = buildInternal();
+    const { state, actions, emissions, unsubscribe } = dragEndHarness(
+      true,
+      false,
+      internal,
+    );
+
+    actions.onGameFinishedDialogClose();
+    unsubscribe();
+
+    // The dismissal is the shell's local UI state (§7.2.1 "dialog open/closed"),
+    // not `AppState`: the action flips the state tier's flag, and the shell
+    // telescope re-emits nothing (only the replayed initial state is observed).
+    expect(internal.setDialogDismissed).toHaveBeenCalledTimes(1);
+    expect(internal.setDialogDismissed).toHaveBeenCalledWith(true);
+    expect(emissions).toHaveLength(1);
+    expect(emissions[0]).toBe(state);
   });
 
   it("onDragEnd resets the hint to `None` after its placement commit, production-faithfully (re-rendered between commits)", () => {
