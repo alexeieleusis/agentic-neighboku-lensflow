@@ -1,5 +1,6 @@
 import type { AppPreferences } from "../../App.types.ts";
 import type { PieceType } from "../CellDisplay/CellDisplay.types.ts";
+import { PIECE_TYPES } from "../CellDisplay/CellDisplay.types.ts";
 import type { BooleanPreferenceKey } from "./PreferencesDisplay.types.ts";
 
 /**
@@ -38,8 +39,8 @@ export const BOOLEAN_PREFERENCE_ROWS: readonly {
 /** §5.8 table's exact label for the `pieceType` row. */
 export const PIECE_TYPE_ROW_LABEL = "Piece Type: Shapes or Faces";
 
-/** The §5.8 `pieceType` options, in display order. */
-export const PIECE_TYPE_OPTIONS: readonly PieceType[] = ["Shapes", "Faces"];
+/** The §5.8 `pieceType` options, in display order — the `PIECE_TYPES` constant (the single source of truth for the accepted skins), not a redeclared array. */
+export const PIECE_TYPE_OPTIONS: readonly PieceType[] = PIECE_TYPES;
 
 /**
  * The getter half of the boolean-row key table: reads the §4.2 field one §5.8

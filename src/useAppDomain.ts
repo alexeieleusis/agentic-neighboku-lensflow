@@ -10,6 +10,7 @@ import type {
   BoardRow,
 } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { BoardCell } from "./components/CellDisplay/CellDisplay.types.ts";
+import { PIECE_TYPES } from "./components/CellDisplay/CellDisplay.types.ts";
 import { cellFromDroppableId } from "./components/CellDisplay/useCellDisplayDomain.ts";
 import { pieceFromDraggableId } from "./components/DraggablePiece/useDraggablePieceDomain.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
@@ -413,14 +414,9 @@ function positiveIntOr(fallback: number, value: unknown): number {
     : fallback;
 }
 
-const PIECE_TYPES: readonly PieceType[] = ["Shapes", "Faces"];
-
-/** `value` when it is a member of the `PieceType` union — membership is checked against the single typed `PIECE_TYPES` constant, so adding a new union member flags this guard at compile time. */
-function isPieceType(value: unknown): value is PieceType {
-  return PIECE_TYPES.some((t) => t === value);
-}
-
-/** `value` when it is one of the `PieceType` literals, else `fallback` — a corrupted stored skin falls back rather than mis-rendering every face. */
+/** `value` when it is one of the `PieceType` literals, else `fallback` — a corrupted stored skin falls back rather than mis-rendering every face. Membership is checked against `PIECE_TYPES`, the single source of truth for the accepted skins, so a new skin flows through this guard without drift. */
 function pieceTypeOr(fallback: PieceType, value: unknown): PieceType {
-  return isPieceType(value) ? value : fallback;
+  return (PIECE_TYPES as readonly unknown[]).includes(value)
+    ? (value as PieceType)
+    : fallback;
 }
