@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AppState } from "../App.types";
+import type { AppPreferences, AppState } from "../App.types";
 import { cellDroppableId } from "../components/CellDisplay/useCellDisplayDomain";
 import { trayPieceDraggableId } from "../components/DraggablePiece/useDraggablePieceDomain";
 import { buildPiecePool, buildBoard } from "../game/boardBuilder";
@@ -20,9 +20,11 @@ import {
   closeInvalidMoveSnackbar,
   formatElapsed,
   isTrayEmpty,
+  mergeStoredPreferences,
   resolveDragDrop,
   resolveDragHint,
   resolveTrayPiece,
+  type JsonValue,
 } from "../useAppDomain";
 import { buildUnsolvableFinishedGame, playToCompletion } from "./fixtures";
 
@@ -576,6 +578,163 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
       availablePieceUniqueCell: true,
       pieceCells: false,
     });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase 16 — §4.3/§8.5 stored-preferences reconciliation                      */
+/* -------------------------------------------------------------------------- */
+
+/** The §4.2 defaults, as `main.tsx` holds them (the merge base). */
+const PREFERENCE_DEFAULTS = {
+  scalars: { base: 3, dimension: 3, size: 6 },
+  pieceType: "Shapes",
+  hints: {
+    fitPieceCount: true,
+    pieceCells: false,
+    fitOnDrag: true,
+    showFitPiecesOnHover: true,
+    availablePiecesCount: true,
+    availablePieceUniqueCell: true,
+    gameIsSolvable: true,
+  },
+  preventInvalidMoves: true,
+  sound: true,
+} satisfies AppPreferences;
+
+describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
+  it("returns the §4.2 defaults verbatim when nothing is stored", () => {
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, undefined)).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, null)).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, {})).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+  });
+
+  it("treats a non-object stored blob (string, number, array) as 'no stored preferences'", () => {
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, "garbage")).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, 42)).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+    expect(mergeStoredPreferences(PREFERENCE_DEFAULTS, [1, 2, 3])).toEqual(
+      PREFERENCE_DEFAULTS,
+    );
+  });
+
+  it('merges a partial stored object over the defaults, field by field (the `{ "sound": false }` checklist case)', () => {
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      sound: false,
+    });
+    expect(merged.sound).toBe(false);
+    // Every other field keeps its default.
+    expect(merged.pieceType).toBe("Shapes");
+    expect(merged.preventInvalidMoves).toBe(true);
+    expect(merged.hints).toEqual(PREFERENCE_DEFAULTS.hints);
+    expect(merged.scalars).toEqual(PREFERENCE_DEFAULTS.scalars);
+    expect(merged.scalars.dimension).toBe(3);
+  });
+
+  it("merges nested stored objects one level deep: a partial `hints` keeps its missing siblings", () => {
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      hints: { fitPieceCount: false },
+      pieceType: "Faces",
+    });
+    expect(merged.pieceType).toBe("Faces");
+    expect(merged.hints.fitPieceCount).toBe(false);
+    // The six sibling hints keep their defaults.
+    expect(merged.hints.pieceCells).toBe(false);
+    expect(merged.hints.fitOnDrag).toBe(true);
+    expect(merged.hints.showFitPiecesOnHover).toBe(true);
+    expect(merged.hints.availablePiecesCount).toBe(true);
+    expect(merged.hints.availablePieceUniqueCell).toBe(true);
+    expect(merged.hints.gameIsSolvable).toBe(true);
+  });
+
+  it("round-trips a full stored object (every field present and well-formed)", () => {
+    const stored = {
+      scalars: { base: 4, dimension: 3, size: 8 },
+      pieceType: "Faces",
+      hints: {
+        fitPieceCount: false,
+        pieceCells: true,
+        fitOnDrag: false,
+        showFitPiecesOnHover: false,
+        availablePiecesCount: false,
+        availablePieceUniqueCell: false,
+        gameIsSolvable: false,
+      },
+      preventInvalidMoves: false,
+      sound: false,
+    } satisfies AppPreferences;
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, stored);
+    expect(merged).toEqual(stored);
+  });
+
+  it("forces the merged `scalars.dimension` to 3 regardless of the stored value (§8.5 — the must-pass quirk)", () => {
+    const storedBlobs: (JsonValue | undefined)[] = [
+      { scalars: { dimension: 5 } },
+      { scalars: { dimension: 0 } },
+      { scalars: { dimension: "tall" } },
+      { scalars: {} },
+      {},
+      undefined,
+    ];
+    for (const stored of storedBlobs) {
+      expect(
+        mergeStoredPreferences(PREFERENCE_DEFAULTS, stored).scalars.dimension,
+      ).toBe(3);
+    }
+    // A well-formed stored scalars object still gets its dimension overridden.
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      scalars: { base: 4, dimension: 9, size: 8 },
+    });
+    expect(merged.scalars).toEqual({ base: 4, dimension: 3, size: 8 });
+  });
+
+  it("falls back field-wise for malformed stored fields rather than letting them poison the result", () => {
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      scalars: { base: "three", size: -2, dimension: 7 },
+      pieceType: "Cats",
+      hints: "not-an-object",
+      preventInvalidMoves: "no",
+      sound: null,
+      stray: true, // unknown fields are dropped, not forwarded
+    });
+    expect(merged.scalars).toEqual({
+      base: 3, // "three" is not a positive integer
+      dimension: 3, // §8.5
+      size: 6, // -2 is not a positive integer
+    });
+    expect(merged.pieceType).toBe("Shapes"); // "Cats" is not a PieceType
+    expect(merged.hints).toEqual(PREFERENCE_DEFAULTS.hints);
+    expect(merged.preventInvalidMoves).toBe(true); // "no" is not a boolean
+    expect(merged.sound).toBe(true); // null is not a boolean
+    expect("stray" in merged).toBe(false);
+  });
+
+  it("passes through any positive integer base/size — the merge is a shape guard, not a range guard", () => {
+    // The merge's contract is type/shape validation only: any positive integer
+    // passes through. The boot-time consequence of a very large value (e.g.
+    // base: 2000 → new Array(2000 ** 3) ≈ 8e9) is handled by main.tsx's
+    // try/catch around buildInitialAppState, which falls back to the §4.2
+    // defaults when the board build fails, so the app always starts.
+    const merged = mergeStoredPreferences(PREFERENCE_DEFAULTS, {
+      scalars: { base: 2000, size: 6 },
+    });
+    expect(merged.scalars.base).toBe(2000);
+    expect(merged.scalars.size).toBe(6);
+  });
+
+  it("keeps the defaults object untouched (no mutation of the merge base)", () => {
+    const snapshot = JSON.stringify(PREFERENCE_DEFAULTS);
+    mergeStoredPreferences(PREFERENCE_DEFAULTS, { sound: false });
+    expect(JSON.stringify(PREFERENCE_DEFAULTS)).toBe(snapshot);
   });
 });
 

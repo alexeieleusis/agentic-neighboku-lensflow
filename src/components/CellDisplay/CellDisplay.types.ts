@@ -8,9 +8,12 @@ import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
  * here at the leaf of the Phase 5 component tree — `CellDisplay` is the first
  * consumer that *uses* it — with the parents (`RowDisplay`, `BoardDisplay`, and the
  * app shell) importing it bottom-up from here, which keeps the component type graph
- * acyclic.
+ * acyclic. `PIECE_TYPES` is the single source of truth for the accepted skin values
+ * and `PieceType` is derived from it, so adding a skin is a one-line change to the
+ * constant that flows through every guard and options list that consumes it.
  */
-export type PieceType = "Shapes" | "Faces";
+export const PIECE_TYPES = ["Shapes", "Faces"] as const;
+export type PieceType = (typeof PIECE_TYPES)[number];
 
 /**
  * One board cell's placement data: its zero-based position plus the piece occupying it

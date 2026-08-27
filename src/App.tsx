@@ -16,6 +16,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import Drawer from "@mui/material/Drawer";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -26,7 +27,7 @@ import type {
   TelescopeComponent,
   TelescopedProps,
 } from "./base/TelescopeComponent.ts";
-import type { AppState, AppViewModel } from "./App.types.ts";
+import type { AppPreferences, AppState, AppViewModel } from "./App.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import { undoPlay } from "./game/gameBuilder.ts";
 import { useAppViewModel } from "./useAppViewModel.ts";
@@ -35,6 +36,7 @@ import { AvailablePiecesTray } from "./components/AvailablePiecesTray/AvailableP
 import { UndoButton } from "./components/UndoButton/UndoButton.tsx";
 import type { UndoButtonState } from "./components/UndoButton/UndoButton.types.ts";
 import { DragFitHintIcon } from "./components/DragFitHintIcon/DragFitHintIcon.tsx";
+import { PreferencesDisplay } from "./components/PreferencesDisplay/PreferencesDisplay.tsx";
 import { SolvabilityIcon } from "./components/SolvabilityIcon/SolvabilityIcon.tsx";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 
@@ -184,6 +186,8 @@ function RenderApp(props: {
         undo={undo}
         dragHint={viewModel.dragHint}
         solvability={viewModel.solvability}
+        preferencesDrawerOpen={viewModel.preferencesDrawerOpen}
+        onPreferencesToggle={viewModel.onPreferencesToggle}
       />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar
@@ -195,6 +199,11 @@ function RenderApp(props: {
         success={viewModel.dialogSuccess}
         elapsed={viewModel.dialogElapsed}
         onClose={viewModel.onGameFinishedDialogClose}
+      />
+      <RenderPreferencesDrawer
+        open={viewModel.preferencesDrawerOpen}
+        onClose={viewModel.onPreferencesDrawerClose}
+        preferences={viewModel.preferences}
       />
     </Stack>
   );
@@ -216,15 +225,24 @@ function RenderApp(props: {
  * dedicated magnified telescope and renders the happy face, the sad face, or nothing
  * from it; the §3.6 solvability result and the §4.2 preference are derived upstream
  * in the shell and passed down through that slice, never recomputed in this bar. The
- * Preferences / New Game / Help buttons are inert (later phases wire their panels);
- * the Undo button (Phase 10) is derived from state.
+ * Preferences button (Phase 16) toggles the bottom preferences drawer; the New Game
+ * (Phase 17) and Help buttons are still inert placeholders; the Undo button (Phase
+ * 10) is derived from state.
  */
 function RenderTopBar(props: {
   readonly undo: TelescopedProps<UndoButtonState>;
   readonly dragHint: TelescopedProps<DragHint>;
   readonly solvability: TelescopedProps<SolvabilityIconState>;
+  readonly preferencesDrawerOpen: boolean;
+  readonly onPreferencesToggle: () => void;
 }): React.ReactElement {
-  const { undo, dragHint, solvability } = props;
+  const {
+    undo,
+    dragHint,
+    solvability,
+    preferencesDrawerOpen,
+    onPreferencesToggle,
+  } = props;
 
   return (
     <AppBar position="static" sx={{ px: 1 }}>
@@ -238,8 +256,20 @@ function RenderTopBar(props: {
            * shell's drag-lifecycle monitor, never through this shell.
            */}
           <DragFitHintIcon {...dragHint} />
+          {/*
+           * Phase 16: the Preferences slot is now wired — the gear icon toggles the
+           * bottom drawer (the `RenderPreferencesDrawer` overlay below, §5.8)
+           * through the shell's action tier; its open state is shell-local UI
+           * state, announced to assistive tech via `aria-expanded`.
+           */}
           <Tooltip title="Preferences">
-            <IconButton size="small" aria-label="Preferences">
+            <IconButton
+              size="small"
+              aria-label="Preferences"
+              aria-haspopup="dialog"
+              aria-expanded={preferencesDrawerOpen}
+              onClick={onPreferencesToggle}
+            >
               <SettingsIcon />
             </IconButton>
           </Tooltip>
@@ -364,5 +394,34 @@ function RenderGameFinishedDialog(props: {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * §5.8 (Phase 16): the bottom preferences drawer. `open` is shell-local UI
+ * state (the `useAppState` tier), so this function owns no state of its own: a
+ * MUI `Drawer` anchored to the bottom (§5.8) whose content is the
+ * `PreferencesDisplay` component proper, handed the §4.2 `preferences` slice as
+ * its own magnified telescope (`App` → `PreferencesDisplay`, §7.2) — the 9
+ * controls read and write that slice directly, and every change reaches the
+ * shell (and `main.tsx`'s per-emission persistence, §4.3) through the
+ * `PREFERENCES_LENS` setter. Dismissal (backdrop click / Escape) fires MUI's
+ * `onClose`, the shell's `onPreferencesDrawerClose` action.
+ */
+function RenderPreferencesDrawer(props: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly preferences: TelescopedProps<AppPreferences>;
+}): React.ReactElement {
+  const { open, onClose, preferences } = props;
+  return (
+    <Drawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      slotProps={{ paper: { sx: { maxHeight: "80vh", overflowY: "auto" } } }}
+    >
+      <PreferencesDisplay {...preferences} />
+    </Drawer>
   );
 }

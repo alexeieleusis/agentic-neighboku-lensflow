@@ -134,13 +134,44 @@ export interface AppViewModel {
    */
   readonly dragHint: TelescopedProps<DragHint>;
   /**
-   * The Phase 15 top-bar slice: the App → `SolvabilityIcon` magnification (§7.2) onto
-   * the §5.13 solvability-indicator state — the §4.2 `hints.gameIsSolvable`
+   * §5.13 / Phase 15: the App → `SolvabilityIcon` magnification (§7.2) onto the
+   * §5.13 solvability-indicator state — the §4.2 `hints.gameIsSolvable`
    * preference plus Phase 3's `stateIsValid` result on `game`. Read-only from the
    * icon's point of view (its lens setter is the identity): both values are derived
    * upstream, in the shell, and this slice mirrors them as shell state changes.
    */
   readonly solvability: TelescopedProps<SolvabilityIconState>;
+  /**
+   * §5.8 / Phase 16: the App → `PreferencesDisplay` magnification (§7.2) onto the
+   * shell's §4.2 `preferences` slice. Unlike the board/tray/solvability slices,
+   * this one is read-AND-write from the panel's point of view: the drawer's 9
+   * controls each read their own value off the slice's `state` and commit their
+   * changes back through the slice's telescope (the `PREFERENCES_LENS` setter in
+   * `useAppViewModel.ts` replaces `AppState.preferences` wholesale), so every
+   * toggle reaches the shell — and `main.tsx`'s per-emission persistence (§4.3) —
+   * without any prop-drilled callback.
+   */
+  readonly preferences: TelescopedProps<AppPreferences>;
+  /**
+   * §5.8 / Phase 16: the preferences drawer's open state — shell-local UI state
+   * (the `useAppState` tier, §7.2.1's "dialog open/closed", the same shape as the
+   * finished-game Dialog's Phase 15 flag), not `AppState`: opening/closing the
+   * drawer changes no preference or game field, so it never reaches the telescope.
+   */
+  readonly preferencesDrawerOpen: boolean;
+  /**
+   * §5.8 / Phase 16: the top-bar Preferences button's (gear icon's) click — flips
+   * the drawer's open state through the state tier's setter (§7.2: event-handler
+   * closures live in the view model, not the render function).
+   */
+  readonly onPreferencesToggle: () => void;
+  /**
+   * §5.8 / Phase 16: the drawer's dismissal — MUI fires its `onClose` on the
+   * backdrop click and on Escape; it closes the drawer through the state tier's
+   * setter, zero-argument on purpose (the committed next state does not depend on
+   * which source fired).
+   */
+  readonly onPreferencesDrawerClose: () => void;
   /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;
   /**

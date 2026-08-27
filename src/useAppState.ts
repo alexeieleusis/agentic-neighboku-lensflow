@@ -11,15 +11,18 @@ import { isTrayEmpty } from "./useAppDomain.ts";
  * reaches `RenderApp` (docs/CONVENTIONS.md split-hook rule: component-external
  * consumers only ever see public state).
  *
- * The three booleans are independent facts, not the facets of one state
+ * The four booleans are independent facts, not the facets of one state
  * machine: `trayEmpty` and `solvable` are derived game predicates that happen
  * to be true/false at any given moment (§3.6's two separate questions — is
  * the game finished? is it solvable? — which are simultaneously true at a
  * finished-solvable end state and simultaneously false at a mid-game
- * position), and `dialogDismissed` is the shell's own UI flag that is only
- * meaningful while `trayEmpty`. A discriminated union would force
- * `trayEmpty × solvable × dialogDismissed` into a single enum whose members
- * conflate the game state with the UI state — worse, not better.
+ * position), `dialogDismissed` is the shell's own UI flag that is only
+ * meaningful while `trayEmpty`, and `preferencesDrawerOpen` (Phase 16) is the
+ * preferences drawer's open/closed flag, meaningful at every moment and
+ * independent of all three. A discriminated union would force
+ * `trayEmpty × solvable × dialogDismissed × preferencesDrawerOpen` into a
+ * single enum whose members conflate the game state with the UI state —
+ * worse, not better.
  */
 // eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface AppInternalState {
@@ -45,13 +48,22 @@ export interface AppInternalState {
    */
   readonly dialogDismissed: boolean;
   readonly setDialogDismissed: (dismissed: boolean) => void;
+  /**
+   * §5.8 (Phase 16): the preferences drawer's open/closed flag — the shell's
+   * local UI state (§7.2.1's "dialog open/closed"), opened by the top-bar gear
+   * icon's toggle and closed by the drawer's own dismissal (backdrop click /
+   * Escape) or the gear icon again. Not `AppState`: no preference or game field
+   * moves with it.
+   */
+  readonly preferencesDrawerOpen: boolean;
+  readonly setPreferencesDrawerOpen: (open: boolean) => void;
 }
 
 /**
- * The shell's state tier (requirements §7.2.1, Phase 15): local, non-telescope
- * UI state plus values derived from the shell telescope's current state via the
- * pure `useAppDomain` functions. Two pieces of local state live here and nowhere
- * else (never ad hoc in `App.tsx`):
+ * The shell's state tier (requirements §7.2.1, Phase 15; extended at Phase 16):
+ * local, non-telescope UI state plus values derived from the shell telescope's
+ * current state via the pure `useAppDomain` functions. Three pieces of local
+ * state live here and nowhere else (never ad hoc in `App.tsx`):
  *
  *   - the finished-game Dialog's elapsed capture: `finishedElapsedMs`, the
  *     difference between the tray-emptying moment and `gamePlay.startTime`
@@ -62,7 +74,12 @@ export interface AppInternalState {
  *     (`dialogElapsed`) never needs a live value;
  *   - the finished-game Dialog's dismissal: local UI state, because the
  *     dismissed-but-tray-still-empty condition is the player's recovery window
- *     (§5.13) and is not shell-wide state worth persisting on `AppState`.
+ *     (§5.13) and is not shell-wide state worth persisting on `AppState`;
+ *   - the preferences drawer's open/closed flag (Phase 16, §5.8): local UI
+ *     state for the same reason the Dialog's dismissal is — opening/closing
+ *     the drawer moves no `AppState` field (no preference, no game), so it
+ *     stays out of the telescope and simply flips on the gear icon's toggle
+ *     and the drawer's own dismissal.
  *
  * The derived booleans (`trayEmpty`, `solvable`) are domain projections of the
  * current shell state; `dialogOpen` itself is computed by the orchestrator from
@@ -98,11 +115,18 @@ export function useAppState(
     setFinishedElapsedMs(trayEmpty ? Date.now() - gamePlay.startTime : null);
   }
 
+  // §5.8 (Phase 16): the preferences drawer's open/closed flag — plain local
+  // UI state, like the finished-game Dialog's dismissal: it starts closed and
+  // is owned by no domain predicate, so it has no reset effect.
+  const [preferencesDrawerOpen, setPreferencesDrawerOpen] = useState(false);
+
   return {
     trayEmpty,
     solvable: stateIsValid(game),
     dialogDismissed,
     setDialogDismissed,
     finishedElapsedMs,
+    preferencesDrawerOpen,
+    setPreferencesDrawerOpen,
   };
 }

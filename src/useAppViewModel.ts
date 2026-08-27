@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Lens } from "telescopejs";
-import type { AppState, AppViewModel } from "./App.types.ts";
+import type { AppPreferences, AppState, AppViewModel } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
@@ -111,6 +111,21 @@ export function useAppViewModel(
     [game, hintGameIsSolvable, props.telescope],
   );
 
+  // App → PreferencesDisplay (§7.2, Phase 16): the magnification onto the §4.2
+  // `preferences` slice — unlike the board/tray/solvability slices above, this one
+  // is read-AND-write from the panel's point of view: the drawer's 9 controls each
+  // read their own value off the slice's `state` and commit their changes back
+  // through the slice's telescope (`PREFERENCES_LENS`'s setter replaces
+  // `AppState.preferences` wholesale), so a toggle re-derives every downstream
+  // slice (board hints, tray hints, solvability visibility) on the same emission.
+  const preferencesSlice = useMemo<TelescopedProps<AppPreferences>>(
+    () => ({
+      state: preferences,
+      telescope: props.telescope.magnify(PREFERENCES_LENS),
+    }),
+    [preferences, props.telescope],
+  );
+
   // §5.13 (Phase 15): the finished-game Dialog. `dialogOpen` is the derivation the
   // §3.6 empty-tray transition drives — open exactly while the tray is empty and the
   // player has not dismissed it; closed at every other tray state, including a fresh
@@ -128,8 +143,12 @@ export function useAppViewModel(
     tray,
     dragHint,
     solvability,
+    preferences: preferencesSlice,
     snackbarOpen: invalidMoveSnackbarOpen,
     onInvalidMoveSnackbarClose: actions.onInvalidMoveSnackbarClose,
+    preferencesDrawerOpen: internal.preferencesDrawerOpen,
+    onPreferencesToggle: actions.onPreferencesToggle,
+    onPreferencesDrawerClose: actions.onPreferencesDrawerClose,
     dialogOpen: internal.trayEmpty && !internal.dialogDismissed,
     dialogSuccess: internal.solvable,
     dialogElapsed: formatElapsed(internal.finishedElapsedMs ?? 0),
@@ -203,4 +222,25 @@ export const SOLVABILITY_ICON_LENS = new Lens<AppState, SolvabilityIconState>(
       state.preferences.hints.gameIsSolvable,
     ),
   (_iconState, state) => state,
+);
+
+/**
+ * The App → `PreferencesDisplay` magnification (§5.8/§7.2, Phase 16): the shell's
+ * §4.2 `preferences` slice as its own lens, unlike its three read-only
+ * neighbours: the setter is a real commit path. Each of the panel's 9 controls
+ * curries a `usePreferencesDisplayDomain` update function with the slice's
+ * current `AppPreferences` and commits the result through the panel's magnified
+ * telescope; this setter realises it by replacing `AppState.preferences`
+ * wholesale: the hint surfaces (board, tray, solvability) re-derive on the
+ * same emission, and the §5.12 move engine reads the live value through the
+ * shell's drop path (`resolveDragDrop` mirrors the narrow `GamePreferences`
+ * onto each `placePiece` call, Phase 16) — a toggle therefore steers the
+ * running game on the very next drop. A write of the slice's own current
+ * reference (a control event that leaves the value unchanged) returns the
+ * input state, so the distinctUntilChanged'd stream re-emits nothing.
+ */
+const PREFERENCES_LENS = new Lens<AppState, AppPreferences>(
+  (state) => state.preferences,
+  (preferences, state) =>
+    preferences === state.preferences ? state : { ...state, preferences },
 );
