@@ -329,7 +329,9 @@ describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
 
     expect(solvabilityIcon("Position is solvable")).not.toBeNull();
     expect(
-      solvabilityIcon("Position is solvable")?.parentElement?.getAttribute("aria-live"),
+      solvabilityIcon("Position is solvable")?.parentElement?.getAttribute(
+        "aria-live",
+      ),
     ).toBe("polite");
     // Exactly one face: the unsolvable icon is absent.
     expect(solvabilityIcon("No solution exists")).toBeNull();
@@ -340,7 +342,9 @@ describe("App shell §5.13 — solvability indicator (Phase 15)", () => {
 
     expect(solvabilityIcon("No solution exists")).not.toBeNull();
     expect(
-      solvabilityIcon("No solution exists")?.parentElement?.getAttribute("aria-live"),
+      solvabilityIcon("No solution exists")?.parentElement?.getAttribute(
+        "aria-live",
+      ),
     ).toBe("polite");
     expect(solvabilityIcon("Position is solvable")).toBeNull();
   });
@@ -388,9 +392,9 @@ describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
       // deterministically `2h 2m 15s`.
       renderApp(buildFinishedSolvableState());
 
-      expect(
-        screen.getAllByRole("alert")[0].textContent,
-      ).toContain("Solved in 2h 2m 15s");
+      expect(screen.getAllByRole("alert")[0].textContent).toContain(
+        "Solved in 2h 2m 15s",
+      );
 
       // Advance the (mocked) clock 5s while the Dialog is open: a live
       // `now − startTime` read would advance the string to `2h 2m 20s`. The
@@ -398,9 +402,9 @@ describe("App shell §5.13 — game-finished dialog (Phase 15)", () => {
       act(() => {
         vi.advanceTimersByTime(5000);
       });
-      expect(
-        screen.getAllByRole("alert")[0].textContent,
-      ).toContain("Solved in 2h 2m 15s");
+      expect(screen.getAllByRole("alert")[0].textContent).toContain(
+        "Solved in 2h 2m 15s",
+      );
     } finally {
       vi.useRealTimers();
     }

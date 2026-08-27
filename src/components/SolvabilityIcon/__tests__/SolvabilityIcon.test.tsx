@@ -22,8 +22,8 @@ function sliceProps(
  * The indicator's icon, looked up by its announced label through the
  * accessibility tree — the same query surface a screen reader would use.
  */
-function iconFor(label: string): SVGElement {
-  return screen.getByRole<SVGElement>("img", { name: label });
+function iconFor(label: string): Element {
+  return screen.getByRole("img", { name: label });
 }
 
 describe("useSolvabilityIconViewModel (§5.13 / Phase 15 slice → presentation)", () => {
