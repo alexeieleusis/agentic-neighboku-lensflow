@@ -413,7 +413,14 @@ function positiveIntOr(fallback: number, value: unknown): number {
     : fallback;
 }
 
-/** `value` when it is one of the two `PieceType` literals, else `fallback` — a corrupted stored skin falls back rather than mis-rendering every face. */
+const PIECE_TYPES: readonly PieceType[] = ["Shapes", "Faces"];
+
+/** `value` when it is a member of the `PieceType` union — membership is checked against the single typed `PIECE_TYPES` constant, so adding a new union member flags this guard at compile time. */
+function isPieceType(value: unknown): value is PieceType {
+  return PIECE_TYPES.some((t) => t === value);
+}
+
+/** `value` when it is one of the `PieceType` literals, else `fallback` — a corrupted stored skin falls back rather than mis-rendering every face. */
 function pieceTypeOr(fallback: PieceType, value: unknown): PieceType {
-  return value === "Shapes" || value === "Faces" ? value : fallback;
+  return isPieceType(value) ? value : fallback;
 }
