@@ -44,10 +44,18 @@ export const PieceDisplay: TelescopeComponent<PieceDisplayState> = function (
 function RenderPieceDisplay(
   viewModel: Readonly<PieceDisplayViewModel>,
 ): React.ReactElement {
-  if (viewModel.pieceType === "Faces") {
-    return RenderFacePiece(viewModel);
+  switch (viewModel.pieceType) {
+    case "Faces":
+      return RenderFacePiece(viewModel);
+    case "Shapes":
+      return RenderShapePiece(viewModel);
+    default: {
+      const exhaustive: never = viewModel;
+      throw new Error(
+        `PieceDisplay: unhandled pieceType ${String(exhaustive)}`,
+      );
+    }
   }
-  return RenderShapePiece(viewModel);
 }
 
 /**
