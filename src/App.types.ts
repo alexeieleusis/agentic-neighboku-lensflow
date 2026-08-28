@@ -5,6 +5,7 @@ import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.t
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
+import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -103,6 +104,17 @@ export interface AppState {
    * board/tray slices.
    */
   readonly dragHint: DragHint;
+  /**
+   * §5.9 (Phase 17): the New Game drawer's open state — shell-owned `AppState`,
+   * like `invalidMoveSnackbarOpen`, deliberately NOT the shell's local UI state
+   * (the way the Phase 16 preferences drawer's flag is in `useAppState`): the
+   * panel's Start commit closes the drawer (§5.9 "and closes the panel")
+   * through the App → `NewGamePanel` magnified telescope, and the drawer's own
+   * dismissal (backdrop click / Escape) closes it through the shell telescope —
+   * both are `AppState` writes, so the flag the two share must live on
+   * `AppState`, where a telescope write can reach it.
+   */
+  readonly newGameDrawerOpen: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -172,6 +184,42 @@ export interface AppViewModel {
    * which source fired).
    */
   readonly onPreferencesDrawerClose: () => void;
+  /**
+   * §5.9 / Phase 17: the App → `NewGamePanel` magnification (§7.2) onto the
+   * panel's slice — the shell's §4.2 `scalars` (the board builder's
+   * `size`/`dimension`/`base` inputs) plus the §5.13/§5.9 game clock origin
+   * (`gamePlay.startTime`). Read-and-write from the panel's point of view,
+   * like the preferences slice: the Board Size select's changes stay LOCAL
+   * to the panel (§4.1's size→dimension rule — no shell state moves until
+   * the player commits), and the Start button's one commit writes the
+   * selected scalars and a fresh `startTime` back through this slice; the
+   * `NEW_GAME_PANEL_LENS` setter realises it by rebuilding the board (Phase
+   * 2's `buildBoard`), unfolding a fresh puzzle (Phase 3's `unfoldGame`),
+   * resetting `gamePlay.startTime`, and closing the panel (§5.9).
+   */
+  readonly newGame: TelescopedProps<NewGamePanelState>;
+  /**
+   * §5.9 / Phase 17: the New Game drawer's open state, projected from
+   * `AppState.newGameDrawerOpen` — shell-wide, because the panel's Start
+   * commit writes it (§5.9 "closes the panel") as well as the top-bar
+   * toggle and the drawer's own dismissal.
+   */
+  readonly newGameDrawerOpen: boolean;
+  /**
+   * §5.9 / Phase 17: the top-bar New Game button's (RestartAlt icon's)
+   * click — toggles the New Game drawer through the shell telescope (a
+   * `AppState` write via `setNewGameDrawerOpen`, not a local-UI-state flip:
+   * the flag is shared with the panel's Start commit).
+   */
+  readonly onNewGameToggle: () => void;
+  /**
+   * §5.9 / Phase 17: the New Game drawer's dismissal — MUI fires its
+   * `onClose` as `(event, reason)` on both the backdrop-click and
+   * Escape-key paths; it closes the drawer through the shell telescope,
+   * zero-argument on purpose (the committed next state does not depend on
+   * which source fired).
+   */
+  readonly onNewGameDrawerClose: () => void;
   /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;
   /**

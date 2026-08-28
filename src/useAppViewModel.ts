@@ -5,14 +5,17 @@ import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
+import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
 import { useAppActions } from "./useAppActions.ts";
 import { useAppState } from "./useAppState.ts";
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  buildNewGamePanelState,
   buildSolvabilityIconState,
   formatElapsed,
+  startNewGame,
 } from "./useAppDomain.ts";
 
 /**
@@ -126,6 +129,26 @@ export function useAppViewModel(
     [preferences, props.telescope],
   );
 
+  // App → NewGamePanel (§7.2, Phase 17): the magnification onto the panel's
+  // slice — the shell's §4.2 `scalars` (the board builder's inputs) plus the
+  // §5.13/§5.9 game clock origin. Read-and-write from the panel's point of
+  // view, like the preferences slice: the Board Size select's changes stay
+  // LOCAL to the panel (§4.1's size→dimension rule — no shell state moves
+  // until the player commits), and the Start button's one commit writes the
+  // selected scalars and a fresh `startTime` through this slice;
+  // `NEW_GAME_PANEL_LENS`'s setter realises it by rebuilding the board
+  // (Phase 2's `buildBoard`), unfolding a fresh puzzle (Phase 3's
+  // `unfoldGame`), resetting `gamePlay.startTime`, and closing the panel
+  // (§5.9). The memo recomputes exactly when the shell state it projects
+  // moves — a Start commit, a preferences change, or any other emission.
+  const newGame = useMemo<TelescopedProps<NewGamePanelState>>(
+    () => ({
+      state: buildNewGamePanelState(props.state),
+      telescope: props.telescope.magnify(NEW_GAME_PANEL_LENS),
+    }),
+    [props.state, props.telescope],
+  );
+
   // §5.13 (Phase 15): the finished-game Dialog. `dialogOpen` is the derivation the
   // §3.6 empty-tray transition drives — open exactly while the tray is empty and the
   // player has not dismissed it; closed at every other tray state, including a fresh
@@ -144,11 +167,15 @@ export function useAppViewModel(
     dragHint,
     solvability,
     preferences: preferencesSlice,
+    newGame,
     snackbarOpen: invalidMoveSnackbarOpen,
     onInvalidMoveSnackbarClose: actions.onInvalidMoveSnackbarClose,
     preferencesDrawerOpen: internal.preferencesDrawerOpen,
     onPreferencesToggle: actions.onPreferencesToggle,
     onPreferencesDrawerClose: actions.onPreferencesDrawerClose,
+    newGameDrawerOpen: props.state.newGameDrawerOpen,
+    onNewGameToggle: actions.onNewGameToggle,
+    onNewGameDrawerClose: actions.onNewGameDrawerClose,
     dialogOpen: internal.trayEmpty && !internal.dialogDismissed,
     dialogSuccess: internal.solvable,
     dialogElapsed: formatElapsed(internal.finishedElapsedMs ?? 0),
@@ -243,4 +270,25 @@ const PREFERENCES_LENS = new Lens<AppState, AppPreferences>(
   (state) => state.preferences,
   (preferences, state) =>
     preferences === state.preferences ? state : { ...state, preferences },
+);
+
+/**
+ * The App → `NewGamePanel` magnification (§5.9/§7.2, Phase 17): the panel's
+ * slice — the shell's §4.2 `scalars` plus the §5.13/§5.9 game clock origin —
+ * as its own lens, unlike the read-only board/tray/solvability neighbours:
+ * the setter is a real commit path. The panel's Start button writes the
+ * selected scalars and a fresh `startTime` through the panel's magnified
+ * telescope; this setter realises that write by running Phase 17's pure
+ * `startNewGame` — rebuild the board from the selected `size`/`dimension`
+ * with the shell's own `base` (Phase 2's `buildBoard`; §4.1 keeps `base`
+ * untouched by the size selector), unfold a fresh puzzle (Phase 3's
+ * `unfoldGame`), reset `gamePlay.startTime` to the written value, record the
+ * selected scalars on `preferences.scalars`, and close the panel (§5.9).
+ * Nothing else writes through this slice: the Board Size select's changes
+ * are the panel's local state, committed as a whole only on Start.
+ */
+const NEW_GAME_PANEL_LENS = new Lens<AppState, NewGamePanelState>(
+  (state) => buildNewGamePanelState(state),
+  (written, state) =>
+    startNewGame(state, written.size, written.dimension, written.startTime),
 );

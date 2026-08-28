@@ -101,6 +101,10 @@ function buildInitialAppState(preferences: AppPreferences): AppState {
     invalidMoveSnackbarOpen: false,
     // §5.6 (Phase 14): no drag is in progress at start, so the hint is "None".
     dragHint: "None",
+    // §5.9 (Phase 17): the New Game drawer starts closed — the flag is
+    // shell-owned `AppState` (the panel's Start commit writes it too), so it
+    // is seeded here like the other shell-wide flags.
+    newGameDrawerOpen: false,
   };
 }
 
