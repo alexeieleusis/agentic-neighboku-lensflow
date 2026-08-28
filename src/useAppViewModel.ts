@@ -4,6 +4,7 @@ import type { AppPreferences, AppState, AppViewModel } from "./App.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type { BoardDisplayState } from "./components/BoardDisplay/BoardDisplay.types.ts";
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
+import type { HelpPanelState } from "./components/HelpPanel/HelpPanel.types.ts";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
 import type { TelescopedProps } from "./base/TelescopeComponent.ts";
@@ -13,6 +14,7 @@ import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
   buildNewGamePanelState,
+  buildHelpPanelState,
   buildSolvabilityIconState,
   formatElapsed,
   startNewGame,
@@ -149,6 +151,23 @@ export function useAppViewModel(
     [props.state, props.telescope],
   );
 
+  // App → HelpPanel (§7.2, Phase 18): the magnification onto the current
+  // candidate space's `{ base, dimension }` — the two §4.2 scalars the help
+  // panel's piece selector and neighbor-set derivations are built on.
+  // Read-only from the panel's point of view (`HELP_PANEL_LENS`'s setter is
+  // the identity): the panel's one user interaction, the piece selection, is
+  // panel-local UI state (the `useHelpPanelState` tier), never a write back
+  // through this slice — so the slice simply mirrors `preferences.scalars`,
+  // re-deriving on the same emission as a §4.1 New Game rebuild's scalars
+  // update (Phase 17) or any preferences change.
+  const helpSlice = useMemo<TelescopedProps<HelpPanelState>>(
+    () => ({
+      state: buildHelpPanelState(preferences.scalars),
+      telescope: props.telescope.magnify(HELP_PANEL_LENS),
+    }),
+    [preferences.scalars, props.telescope],
+  );
+
   // §5.13 (Phase 15): the finished-game Dialog. `dialogOpen` is the derivation the
   // §3.6 empty-tray transition drives — open exactly while the tray is empty and the
   // player has not dismissed it; closed at every other tray state, including a fresh
@@ -168,6 +187,7 @@ export function useAppViewModel(
     solvability,
     preferences: preferencesSlice,
     newGame,
+    help: helpSlice,
     snackbarOpen: invalidMoveSnackbarOpen,
     onInvalidMoveSnackbarClose: actions.onInvalidMoveSnackbarClose,
     preferencesDrawerOpen: internal.preferencesDrawerOpen,
@@ -176,6 +196,9 @@ export function useAppViewModel(
     newGameDrawerOpen: props.state.newGameDrawerOpen,
     onNewGameToggle: actions.onNewGameToggle,
     onNewGameDrawerClose: actions.onNewGameDrawerClose,
+    helpDrawerOpen: internal.helpDrawerOpen,
+    onHelpToggle: actions.onHelpToggle,
+    onHelpDrawerClose: actions.onHelpDrawerClose,
     dialogOpen: internal.trayEmpty && !internal.dialogDismissed,
     dialogSuccess: internal.solvable,
     dialogElapsed: formatElapsed(internal.finishedElapsedMs ?? 0),
@@ -291,4 +314,18 @@ const NEW_GAME_PANEL_LENS = new Lens<AppState, NewGamePanelState>(
   (state) => buildNewGamePanelState(state),
   (written, state) =>
     startNewGame(state, written.size, written.dimension, written.startTime),
+);
+
+/**
+ * The App → `HelpPanel` magnification (§5.10/§7.2, Phase 18): the current
+ * candidate space's `{ base, dimension }` scalars as their own lens. Unlike
+ * the read-only board/tray/solvability neighbours it is also unlike
+ * `PREFERENCES_LENS`: the panel's one user interaction — the piece selector's
+ * choice — is panel-LOCAL UI state (the `useHelpPanelState` tier), never a
+ * write back through this slice, so the setter is the identity: no write
+ * through the help slice can change any `AppState` field.
+ */
+const HELP_PANEL_LENS = new Lens<AppState, HelpPanelState>(
+  (state) => buildHelpPanelState(state.preferences.scalars),
+  (_helpState, state) => state,
 );

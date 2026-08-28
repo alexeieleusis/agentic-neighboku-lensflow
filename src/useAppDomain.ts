@@ -3,7 +3,9 @@ import type {
   AppState,
   HintPreferences,
   PieceType,
+  PreferenceScalars,
 } from "./App.types.ts";
+import type { HelpPanelState } from "./components/HelpPanel/HelpPanel.types.ts";
 import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/AvailablePiecesTray.types.ts";
 import type {
   BoardDisplayState,
@@ -80,6 +82,23 @@ export function buildAvailablePiecesTrayState(
     game,
     availablePieceUniqueCell: hints.availablePieceUniqueCell,
     pieceCells: hints.pieceCells,
+  };
+}
+
+/**
+ * §5.10 (Phase 18): the App → `HelpPanel` slice — the current candidate
+ * space's `base`/`dimension`, the two §4.2 scalars the help panel's piece
+ * selector and neighbor-set derivations are built on. Read-only projection:
+ * the panel's one user interaction (the piece selection) is panel-local UI
+ * state, never a write back through this slice (`HELP_PANEL_LENS`'s setter
+ * is the identity, `useAppViewModel.ts`).
+ */
+export function buildHelpPanelState(
+  scalars: Pick<PreferenceScalars, "base" | "dimension">,
+): HelpPanelState {
+  return {
+    base: scalars.base,
+    dimension: scalars.dimension,
   };
 }
 

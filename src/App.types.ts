@@ -6,6 +6,7 @@ import type { AvailablePiecesTrayState } from "./components/AvailablePiecesTray/
 import type { DragHint } from "./components/DraggablePiece/DraggablePiece.types.ts";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import type { NewGamePanelState } from "./components/NewGamePanel/NewGamePanel.types.ts";
+import type { HelpPanelState } from "./components/HelpPanel/HelpPanel.types.ts";
 
 /**
  * The two visual skins for the shared attribute space (requirements §1, §5.4). A user
@@ -165,6 +166,15 @@ export interface AppViewModel {
    */
   readonly preferences: TelescopedProps<AppPreferences>;
   /**
+   * §5.10 / Phase 18: the App → `HelpPanel` magnification (§7.2) onto the current
+   * candidate space's `{ base, dimension }` — read-only from the panel's point of
+   * view (`HELP_PANEL_LENS`'s setter is the identity): the panel's one user
+   * interaction, the piece selection, is panel-local UI state (the
+   * `useHelpPanelState` tier), never a write back through the slice, so the slice
+   * simply mirrors `preferences.scalars` as the shell state changes.
+   */
+  readonly help: TelescopedProps<HelpPanelState>;
+  /**
    * §5.8 / Phase 16: the preferences drawer's open state — shell-local UI state
    * (the `useAppState` tier, §7.2.1's "dialog open/closed", the same shape as the
    * finished-game Dialog's Phase 15 flag), not `AppState`: opening/closing the
@@ -220,6 +230,25 @@ export interface AppViewModel {
    * which source fired).
    */
   readonly onNewGameDrawerClose: () => void;
+  /**
+   * §5.10 / Phase 18: the help drawer's open state — shell-local UI state (the
+   * `useAppState` tier, the same shape as the preferences drawer's Phase 16
+   * flag): opening/closing the drawer changes no preference or game field, so
+   * it never reaches the telescope.
+   */
+  readonly helpDrawerOpen: boolean;
+  /**
+   * §5.10 / Phase 18: the top-bar Help button's click — flips the help drawer's
+   * open state through the state tier's setter (§7.2: event-handler closures
+   * live in the view model, not the render function).
+   */
+  readonly onHelpToggle: () => void;
+  /**
+   * §5.10 / Phase 18: the help drawer's dismissal — MUI fires its `onClose` on
+   * the backdrop click and on Escape; it closes the drawer through the state
+   * tier's setter, zero-argument on purpose.
+   */
+  readonly onHelpDrawerClose: () => void;
   /** §5.12: the invalid-move Snackbar, projected from `invalidMoveSnackbarOpen`. */
   readonly snackbarOpen: boolean;
   /**

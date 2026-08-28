@@ -11,18 +11,18 @@ import { isTrayEmpty } from "./useAppDomain.ts";
  * reaches `RenderApp` (docs/CONVENTIONS.md split-hook rule: component-external
  * consumers only ever see public state).
  *
- * The four booleans are independent facts, not the facets of one state
+ * The booleans are independent facts, not the facets of one state
  * machine: `trayEmpty` and `solvable` are derived game predicates that happen
  * to be true/false at any given moment (§3.6's two separate questions — is
  * the game finished? is it solvable? — which are simultaneously true at a
  * finished-solvable end state and simultaneously false at a mid-game
  * position), `dialogDismissed` is the shell's own UI flag that is only
- * meaningful while `trayEmpty`, and `preferencesDrawerOpen` (Phase 16) is the
- * preferences drawer's open/closed flag, meaningful at every moment and
- * independent of all three. A discriminated union would force
- * `trayEmpty × solvable × dialogDismissed × preferencesDrawerOpen` into a
- * single enum whose members conflate the game state with the UI state —
- * worse, not better.
+ * meaningful while `trayEmpty`, and `preferencesDrawerOpen` (Phase 16) and
+ * `helpDrawerOpen` (Phase 18) are the two drawers' open/closed flags,
+ * meaningful at every moment and independent of all the rest. A
+ * discriminated union would force `trayEmpty × solvable × dialogDismissed ×
+ * preferencesDrawerOpen × helpDrawerOpen` into a single enum whose members
+ * conflate the game state with the UI state — worse, not better.
  */
 // eslint-disable-next-line lensflow/no-parallel-boolean-state-flags
 export interface AppInternalState {
@@ -57,13 +57,24 @@ export interface AppInternalState {
    */
   readonly preferencesDrawerOpen: boolean;
   readonly setPreferencesDrawerOpen: (open: boolean) => void;
+  /**
+   * §5.10 (Phase 18): the help drawer's open/closed flag — the shell's local
+   * UI state (§7.2.1's "dialog open/closed"), opened by the top-bar help
+   * icon's toggle and closed by the drawer's own dismissal (backdrop click /
+   * Escape) or the help icon again. Not `AppState`: no preference or game
+   * field moves with it (the piece selected INSIDE the open drawer is the
+   * panel's own local state, in `HelpPanel`'s `useHelpPanelState` tier).
+   */
+  readonly helpDrawerOpen: boolean;
+  readonly setHelpDrawerOpen: (open: boolean) => void;
 }
 
 /**
- * The shell's state tier (requirements §7.2.1, Phase 15; extended at Phase 16):
- * local, non-telescope UI state plus values derived from the shell telescope's
- * current state via the pure `useAppDomain` functions. Three pieces of local
- * state live here and nowhere else (never ad hoc in `App.tsx`):
+ * The shell's state tier (requirements §7.2.1, Phase 15; extended at Phases
+ * 16 and 18): local, non-telescope UI state plus values derived from the
+ * shell telescope's current state via the pure `useAppDomain` functions.
+ * Four pieces of local state live here and nowhere else (never ad hoc in
+ * `App.tsx`):
  *
  *   - the finished-game Dialog's elapsed capture: `finishedElapsedMs`, the
  *     difference between the tray-emptying moment and `gamePlay.startTime`
@@ -79,7 +90,10 @@ export interface AppInternalState {
  *     state for the same reason the Dialog's dismissal is — opening/closing
  *     the drawer moves no `AppState` field (no preference, no game), so it
  *     stays out of the telescope and simply flips on the gear icon's toggle
- *     and the drawer's own dismissal.
+ *     and the drawer's own dismissal;
+ *   - the help drawer's open/closed flag (Phase 18, §5.10): local UI state
+ *     for exactly the same reason — it starts closed and is owned by no
+ *     domain predicate, so it has no reset effect.
  *
  * The derived booleans (`trayEmpty`, `solvable`) are domain projections of the
  * current shell state; `dialogOpen` itself is computed by the orchestrator from
@@ -120,6 +134,11 @@ export function useAppState(
   // is owned by no domain predicate, so it has no reset effect.
   const [preferencesDrawerOpen, setPreferencesDrawerOpen] = useState(false);
 
+  // §5.10 (Phase 18): the help drawer's open/closed flag — plain local UI
+  // state for the same reason (the piece selected inside the open drawer is
+  // the panel's own local state, not the shell's).
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
+
   return {
     trayEmpty,
     solvable: stateIsValid(game),
@@ -128,5 +147,7 @@ export function useAppState(
     finishedElapsedMs,
     preferencesDrawerOpen,
     setPreferencesDrawerOpen,
+    helpDrawerOpen,
+    setHelpDrawerOpen,
   };
 }
