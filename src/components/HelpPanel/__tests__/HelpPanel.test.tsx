@@ -17,7 +17,11 @@ afterEach(() => {
   cleanup();
 });
 
-function renderHelpPanel(state: HelpPanelState = { base: 3, dimension: 3 }) {
+function renderHelpPanel({
+  base = 3,
+  dimension = 3,
+}: Partial<HelpPanelState> = {}) {
+  const state: HelpPanelState = { base, dimension };
   return render(
     <ThemeProvider theme={darkTheme}>
       <HelpPanel state={state} telescope={Telescope.of(state)} />
