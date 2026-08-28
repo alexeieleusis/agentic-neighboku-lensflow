@@ -86,6 +86,21 @@ export interface AppActions {
    * drawer through the shell telescope.
    */
   readonly onNewGameDrawerClose: () => void;
+  /**
+   * §5.10 (Phase 18): the top-bar Help button's click — toggles the help
+   * drawer open/closed. Like the preferences drawer's toggle, this does not
+   * commit through the telescope: the open/closed flag is the shell's local
+   * UI state (Phase 18's `useAppState` tier), so the action just flips it.
+   */
+  readonly onHelpToggle: () => void;
+  /**
+   * §5.10 (Phase 18): the help drawer's dismissal — MUI fires its `onClose`
+   * as `(event, reason)` on both the backdrop-click and Escape-key paths,
+   * and the committed next state does not depend on which source fired, so
+   * this is zero-argument on purpose: it just closes the drawer through the
+   * state tier's setter.
+   */
+  readonly onHelpDrawerClose: () => void;
 }
 
 /**
@@ -137,6 +152,14 @@ export interface AppActions {
  * the flag (§5.9 "and closes the panel" is part of the panel's single
  * slice-telescope write), so the flag is shell-owned `AppState`
  * (`newGameDrawerOpen`) rather than `useAppState` local state.
+ *
+ * Phase 18 adds the help drawer's open/close (§5.10, `onHelpToggle` /
+ * `onHelpDrawerClose`) — the exact same local-UI-state shape one more time:
+ * the top-bar help icon toggles the shell's local `helpDrawerOpen` flag and
+ * the drawer's own `onClose` (backdrop click / Escape) closes it. The piece
+ * selected INSIDE the open drawer is the panel's own local state
+ * (`HelpPanel`'s `useHelpPanelState` tier), so neither of these handlers
+ * touches it.
  *
  * This hook therefore takes the state tier's internal shape (`AppInternalState`)
  * alongside the telescoped props: the orchestrator (`useAppViewModel`) creates it
@@ -255,6 +278,20 @@ export function useAppActions(
     telescope.update(setNewGameDrawerOpen(state, false));
   }, [state, telescope]);
 
+  // §5.10 (Phase 18): the help icon's toggle — flip the state tier's local
+  // drawer flag; a second click while open closes it (the drawer's own
+  // `onClose` covers the backdrop/Escape paths).
+  const onHelpToggle = useCallback(() => {
+    internal.setHelpDrawerOpen(!internal.helpDrawerOpen);
+  }, [internal]);
+
+  // §5.10 (Phase 18): the help drawer's dismissal (MUI's `onClose` —
+  // backdrop click or Escape). The only commit is the local flag itself, as
+  // with the preferences drawer's dismissal above.
+  const onHelpDrawerClose = useCallback(() => {
+    internal.setHelpDrawerOpen(false);
+  }, [internal]);
+
   useDndMonitor({ onDragStart, onDragOver, onDragEnd, onDragCancel });
 
   return {
@@ -268,5 +305,7 @@ export function useAppActions(
     onPreferencesDrawerClose,
     onNewGameToggle,
     onNewGameDrawerClose,
+    onHelpToggle,
+    onHelpDrawerClose,
   };
 }

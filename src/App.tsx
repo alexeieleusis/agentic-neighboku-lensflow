@@ -37,6 +37,8 @@ import { UndoButton } from "./components/UndoButton/UndoButton.tsx";
 import type { UndoButtonState } from "./components/UndoButton/UndoButton.types.ts";
 import { DragFitHintIcon } from "./components/DragFitHintIcon/DragFitHintIcon.tsx";
 import { PreferencesDisplay } from "./components/PreferencesDisplay/PreferencesDisplay.tsx";
+import { HelpPanel } from "./components/HelpPanel/HelpPanel.tsx";
+import type { HelpPanelState } from "./components/HelpPanel/HelpPanel.types.ts";
 import { SolvabilityIcon } from "./components/SolvabilityIcon/SolvabilityIcon.tsx";
 import type { SolvabilityIconState } from "./components/SolvabilityIcon/SolvabilityIcon.types.ts";
 import { NewGamePanel } from "./components/NewGamePanel/NewGamePanel.tsx";
@@ -192,6 +194,8 @@ function RenderApp(props: {
         onPreferencesToggle={viewModel.onPreferencesToggle}
         newGameDrawerOpen={viewModel.newGameDrawerOpen}
         onNewGameToggle={viewModel.onNewGameToggle}
+        helpDrawerOpen={viewModel.helpDrawerOpen}
+        onHelpToggle={viewModel.onHelpToggle}
       />
       <AppBoardTray viewModel={viewModel} />
       <RenderInvalidMoveSnackbar
@@ -213,6 +217,11 @@ function RenderApp(props: {
         open={viewModel.newGameDrawerOpen}
         onClose={viewModel.onNewGameDrawerClose}
         newGame={viewModel.newGame}
+      />
+      <RenderHelpDrawer
+        open={viewModel.helpDrawerOpen}
+        onClose={viewModel.onHelpDrawerClose}
+        help={viewModel.help}
       />
     </Stack>
   );
@@ -236,8 +245,8 @@ function RenderApp(props: {
  * in the shell and passed down through that slice, never recomputed in this bar. The
  * Preferences button (Phase 16) toggles the bottom preferences drawer; the New Game
  * button (Phase 17) toggles the bottom New Game drawer the same way; the Help button
- * is still an inert placeholder (Phase 18); the Undo button (Phase 10) is derived
- * from state.
+ * (Phase 18) toggles the top help drawer (§5.10); the Undo button (Phase 10) is
+ * derived from state.
  */
 function RenderTopBar(props: {
   readonly undo: TelescopedProps<UndoButtonState>;
@@ -247,6 +256,8 @@ function RenderTopBar(props: {
   readonly onPreferencesToggle: () => void;
   readonly newGameDrawerOpen: boolean;
   readonly onNewGameToggle: () => void;
+  readonly helpDrawerOpen: boolean;
+  readonly onHelpToggle: () => void;
 }): React.ReactElement {
   const {
     undo,
@@ -256,6 +267,8 @@ function RenderTopBar(props: {
     onPreferencesToggle,
     newGameDrawerOpen,
     onNewGameToggle,
+    helpDrawerOpen,
+    onHelpToggle,
   } = props;
 
   return (
@@ -320,8 +333,20 @@ function RenderTopBar(props: {
            * telescope); this shell just places it in the slot Phase 4 reserved.
            */}
           <SolvabilityIcon {...solvability} />
+          {/*
+           * Phase 18: the Help slot is now wired — the help icon toggles the
+           * top help drawer (§5.10, the `RenderHelpDrawer` overlay below)
+           * through the shell's action tier; its open state is shell-local UI
+           * state, announced to assistive tech via `aria-expanded`.
+           */}
           <Tooltip title="Help">
-            <IconButton size="small" aria-label="Help">
+            <IconButton
+              size="small"
+              aria-label="Help"
+              aria-haspopup="dialog"
+              aria-expanded={helpDrawerOpen}
+              onClick={onHelpToggle}
+            >
               <HelpIcon />
             </IconButton>
           </Tooltip>
@@ -481,6 +506,36 @@ function RenderNewGameDrawer(props: {
       slotProps={{ paper: { sx: { maxHeight: "80vh", overflowY: "auto" } } }}
     >
       <NewGamePanel {...newGame} />
+    </Drawer>
+  );
+}
+
+/**
+ * §5.10 (Phase 18): the TOP help drawer. `open` is shell-local UI state
+ * (the `useAppState` tier — the same shape as the Phase 16 preferences
+ * drawer), so this function owns no state of its own: a MUI `Drawer`
+ * anchored to the top (§5.10), whose content is the `HelpPanel` component
+ * proper, handed the §5.10 `{ base, dimension }` candidate-space slice as
+ * its own magnified telescope (`App` → `HelpPanel`, §7.2) — the panel's
+ * piece selector and both neighbor groups read and (in the selector's
+ * case) act through that slice and its panel-local selection state, and the
+ * drawer's dismissal (backdrop click / Escape) fires MUI's `onClose`, the
+ * shell's `onHelpDrawerClose` action.
+ */
+function RenderHelpDrawer(props: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly help: TelescopedProps<HelpPanelState>;
+}): React.ReactElement {
+  const { open, onClose, help } = props;
+  return (
+    <Drawer
+      anchor="top"
+      open={open}
+      onClose={onClose}
+      slotProps={{ paper: { sx: { maxHeight: "80vh", overflowY: "auto" } } }}
+    >
+      <HelpPanel {...help} />
     </Drawer>
   );
 }

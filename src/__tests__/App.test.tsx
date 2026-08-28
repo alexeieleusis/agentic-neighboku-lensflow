@@ -947,3 +947,86 @@ describe("App shell §5.9 — New Game drawer (Phase 17)", () => {
     }
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* §5.10 help drawer (Phase 18)                                                */
+/* -------------------------------------------------------------------------- */
+
+describe("App shell §5.10 — help drawer (Phase 18)", () => {
+  it("opens on the help icon's click: the piece selector, both neighbor groups, and all three static links appear", () => {
+    renderApp(buildAppState());
+
+    // Closed: a closed MUI Modal (the Drawer's root) renders nothing at all,
+    // so the panel's content simply is not in the DOM.
+    expect(screen.queryByText("Valid neighbors")).toBeNull();
+    const helpButton = screen.getByRole("button", { name: "Help" });
+    expect(helpButton.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(helpButton);
+
+    // §5.10 items 1–3: the piece selector (MUI v9's Select renders its
+    // trigger as the listbox's `role="combobox"`, in its no-selection
+    // state) plus both neighbor groupings…
+    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.getByText("Valid neighbors")).toBeTruthy();
+    expect(screen.getByText("Invalid neighbors")).toBeTruthy();
+    // §5.10 items 4–6: the two separately-labeled tutorial-video links and
+    // the Freepik credit — the credit present in this Shapes-only state,
+    // unconditionally (the panel never reads `pieceType`).
+    expect(
+      screen.getByRole("link", { name: "Tutorial in English" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Tutorial en Español" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Images under license by Freep!k" }),
+    ).toBeTruthy();
+    // The help button's open state is announced to assistive tech. While the
+    // drawer (a MUI Modal) is open, the background content — the top bar
+    // included — is `aria-hidden` by design, so the button is only reachable
+    // with `hidden: true` from here on.
+    expect(
+      screen
+        .getByRole("button", { name: "Help", hidden: true })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("closes on the help icon again, and on Escape (the drawer's own dismissal)", () => {
+    vi.useFakeTimers();
+    try {
+      renderApp(buildAppState());
+      fireEvent.click(screen.getByRole("button", { name: "Help" }));
+      expect(screen.getByText("Valid neighbors")).toBeTruthy();
+
+      // Help icon again (now in the a11y-hidden background — `hidden: true`,
+      // as the open-drawer assertion above notes): the shell's toggle action
+      // flips the drawer closed…
+      fireEvent.click(
+        screen.getByRole("button", { name: "Help", hidden: true }),
+      );
+      // MUI settles the Drawer's exit transition on its own timer (as the
+      // Phase 16 Drawer test does), so advance before asserting the DOM.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByText("Valid neighbors")).toBeNull();
+
+      // Open it again and dismiss it the MUI way: Escape on the drawer's
+      // content (MUI's Modal listens on its own root, where the keystroke
+      // bubbles up — not on `document`).
+      fireEvent.click(screen.getByRole("button", { name: "Help" }));
+      expect(screen.getByText("Valid neighbors")).toBeTruthy();
+      fireEvent.keyDown(screen.getByText("Valid neighbors"), {
+        key: "Escape",
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByText("Valid neighbors")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

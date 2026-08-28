@@ -63,6 +63,8 @@ function buildInternal(
     setDialogDismissed: vi.fn(),
     preferencesDrawerOpen: false,
     setPreferencesDrawerOpen: vi.fn(),
+    helpDrawerOpen: false,
+    setHelpDrawerOpen: vi.fn(),
     ...overrides,
   };
 }
