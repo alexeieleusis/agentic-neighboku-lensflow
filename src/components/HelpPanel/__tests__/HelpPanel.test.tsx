@@ -68,7 +68,7 @@ function groupPieceImages(title: string): SVGElement[] {
 function optionWithValue(value: string): HTMLElement {
   const option = screen
     .getAllByRole("option")
-    .find((o) => o.getAttribute("data-value") === value);
+    .find((o) => o.dataset.value === value);
   if (option === undefined) {
     throw new Error(`fixture: no option with data-value ${value}`);
   }
