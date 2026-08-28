@@ -19,6 +19,24 @@ function renderHelpPanel(overrides: Partial<HelpPanelState> = {}) {
   );
 }
 
+/**
+ * The slice-movable variant of `renderHelpPanel`: `initialProps` keeps `state`
+ * and `telescope` re-derived from the same `{ base, dimension }` on every
+ * render, so `rerender` can move the slice — the Phase 17 New Game path
+ * re-derives `HELP_PANEL_LENS` at a different size, which the closed-over
+ * `renderHelpPanel` cannot express.
+ */
+function renderHelpPanelSlice() {
+  return renderHook(
+    ({ base, dimension }) =>
+      useHelpPanelViewModel({
+        state: { base, dimension },
+        telescope: Telescope.of<HelpPanelState>({ base, dimension }),
+      }),
+    { initialProps: { base: 3, dimension: 3 } },
+  );
+}
+
 describe("useHelpPanelViewModel (§5.10 no-selection state)", () => {
   it("starts with no piece selected: the placeholder state, with the full candidate space listed", () => {
     const { result } = renderHelpPanel();
@@ -109,6 +127,28 @@ describe("useHelpPanelViewModel (§5.10 selecting a piece)", () => {
     expect(vm.candidatePieces).toHaveLength(27);
   });
 
+  it("an unknown label resolves to the no-selection state through the view model (the domain tier's `null` resolution, committed by the action tier)", () => {
+    const { result } = renderHelpPanel();
+
+    act(() => {
+      result.current.onPieceSelect("0 0 0");
+    });
+    expect(result.current.validNeighbors).toHaveLength(12);
+
+    // "9 9 9" holds no member of the base-3 space: `resolvePieceByLabel`
+    // resolves it to `null`, and the action tier commits that.
+    act(() => {
+      result.current.onPieceSelect("9 9 9");
+    });
+    const vm = result.current;
+    expect(vm.selectedPiece).toBeNull();
+    expect(vm.selectedLabel).toBe("");
+    expect(vm.validNeighbors).toHaveLength(0);
+    expect(vm.invalidNeighbors).toHaveLength(0);
+    // The candidate space is untouched.
+    expect(vm.candidatePieces).toHaveLength(27);
+  });
+
   it("hands every rendered piece to the shared PieceDisplay through its own magnified slice at the panel's render size", () => {
     const { result } = renderHelpPanel();
 
@@ -125,5 +165,32 @@ describe("useHelpPanelViewModel (§5.10 selecting a piece)", () => {
     expect(entry.image.state.size).toBe(HELP_PIECE_IMAGE_PX);
     // The slice's telescope is a real (magnified) telescope, not a stand-in.
     expect(typeof entry.image.telescope.update).toBe("function");
+  });
+});
+
+describe("useHelpPanelViewModel (§5.10 selection reset on slice move)", () => {
+  it("a selection from the old candidate space never renders against the new one: re-deriving the slice at a different size resets to the placeholder", () => {
+    const { result, rerender } = renderHelpPanelSlice();
+
+    act(() => {
+      result.current.onPieceSelect("0 0 0");
+    });
+    const vmBefore = result.current;
+    expect(vmBefore.validNeighbors).toHaveLength(12);
+    expect(vmBefore.invalidNeighbors).toHaveLength(15);
+
+    // The Phase 17 New Game commit re-derives `HELP_PANEL_LENS` at a
+    // different size; the shell re-renders the panel against the new slice.
+    rerender({ base: 3, dimension: 2 });
+    const vm = result.current;
+    // Without the reset, the panel would keep rendering sets for [0,0,0] —
+    // a piece no longer in the 9-piece space — and the selector would show a
+    // label matching no option.
+    expect(vm.selectedPiece).toBeNull();
+    expect(vm.selectedLabel).toBe("");
+    expect(vm.validNeighbors).toHaveLength(0);
+    expect(vm.invalidNeighbors).toHaveLength(0);
+    // The selector lists the new 3^2 space, in full.
+    expect(vm.candidatePieces).toHaveLength(9);
   });
 });
