@@ -22,22 +22,30 @@ export interface PieceDisplayState {
   readonly pieceType: PieceType;
 }
 
+/** Members every PieceDisplay view-model branch carries. */
+export interface PieceDisplaySized {
+  readonly size: number;
+  /** Human-readable description used as the node's accessible label. */
+  readonly ariaLabel: string;
+}
+
+/** The §5.3 visual attributes precomputed from the shape tables. */
+export interface PieceShapeAttributes {
+  readonly form: PieceForm;
+  readonly strokeColor: string;
+  readonly fillColor: string;
+  readonly strokeWidth: number;
+}
+
 /**
  * Everything `RenderPieceDisplay` needs for the §5.3 Shapes branch, precomputed by
  * `usePieceDisplayViewModel`: the three §5.3 visual attributes (form / stroke color /
  * fill color) plus that form's stroke width, the requested `size`, and an accessible
  * label.
  */
-export interface PieceDisplayShapesViewModel {
+export type PieceDisplayShapesViewModel = {
   readonly pieceType: "Shapes";
-  readonly form: PieceForm;
-  readonly strokeColor: string;
-  readonly fillColor: string;
-  readonly strokeWidth: number;
-  readonly size: number;
-  /** Human-readable description used as the SVG's `aria-label`/`<title>`. */
-  readonly ariaLabel: string;
-}
+} & PieceShapeAttributes & PieceDisplaySized;
 
 /**
  * Everything `RenderPieceDisplay` needs for the §5.4 Faces branch, precomputed by
@@ -45,14 +53,11 @@ export interface PieceDisplayShapesViewModel {
  * `public/faces/*.png` names, `pieceFaceTables.ts`), the requested `size`, and the
  * face's accessible label.
  */
-export interface PieceDisplayFacesViewModel {
+export type PieceDisplayFacesViewModel = {
   readonly pieceType: "Faces";
   /** `/faces/h{h}e{e}m{m}.png` for this piece's `piece[0]/piece[1]/piece[2]` (§5.4). */
   readonly faceImagePath: string;
-  readonly size: number;
-  /** Human-readable description used as the `<img>`'s `alt`. */
-  readonly ariaLabel: string;
-}
+} & PieceDisplaySized;
 
 /**
  * The view model `RenderPieceDisplay` consumes: one branch per §4.2 skin, discriminated
