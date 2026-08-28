@@ -21,7 +21,9 @@ const SPACE = candidateSpaceFor(3, 3);
 
 /** Value-keyed form of a piece set (the pools are interned per call, so set comparisons are by value, never by reference). */
 function valueSet(pieces: readonly Piece[]): readonly string[] {
-  return pieces.map((piece) => piece.join(",")).sort();
+  return pieces
+    .map((piece) => piece.join(","))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** The hand-computed valid-neighbor set of `[0,0,0]` at base 3, dimension 3: the pieces sharing exactly one attribute position with it. */
@@ -88,7 +90,7 @@ describe("validNeighborSetFor (§5.10 item 2: buildPossibleNeighbors, no exclusi
     const piece = SPACE[0];
     expect(piece.join(",")).toBe("0,0,0");
     expect(valueSet(validNeighborSetFor(piece, 3))).toEqual(
-      [...ZERO_ZERO_ZERO_VALID].sort(),
+      [...ZERO_ZERO_ZERO_VALID].sort((a, b) => a.localeCompare(b)),
     );
   });
 
