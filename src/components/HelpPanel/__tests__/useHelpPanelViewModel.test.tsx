@@ -193,4 +193,39 @@ describe("useHelpPanelViewModel (§5.10 selection reset on slice move)", () => {
     // The selector lists the new 3^2 space, in full.
     expect(vm.candidatePieces).toHaveLength(9);
   });
+
+  it("resets within the slice-move render itself: no post-paint reset frame (a stale selection never computes a set against the new space)", () => {
+    let renders = 0;
+    const { result, rerender } = renderHook(
+      ({ base, dimension }) => {
+        renders += 1;
+        return useHelpPanelViewModel({
+          state: { base, dimension },
+          telescope: Telescope.of<HelpPanelState>({ base, dimension }),
+        });
+      },
+      { initialProps: { base: 3, dimension: 3 } },
+    );
+
+    act(() => {
+      result.current.onPieceSelect("0 0 0");
+    });
+    // The mount render plus the selection's state update.
+    expect(renders).toBe(2);
+
+    // The Phase 17 New Game commit re-derives `HELP_PANEL_LENS` at a
+    // different size; the shell re-renders the panel against the new slice.
+    // The reset is part of THIS render (the effective selection is derived
+    // synchronously from the new candidate space): a post-paint `useEffect`
+    // reset would have computed both neighbor sets from the stale selection
+    // in this render — one painted frame in which "the two sets partition
+    // the candidate space" does not hold — and then re-rendered again after
+    // clearing.
+    rerender({ base: 3, dimension: 2 });
+    expect(renders).toBe(3);
+    const vm = result.current;
+    expect(vm.selectedPiece).toBeNull();
+    expect(vm.validNeighbors).toHaveLength(0);
+    expect(vm.invalidNeighbors).toHaveLength(0);
+  });
 });

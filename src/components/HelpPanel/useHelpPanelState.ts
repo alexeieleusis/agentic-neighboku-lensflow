@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Lens } from "telescopejs";
 import type { Telescope } from "telescopejs";
+import { isSamePiece } from "../../game/entities";
 import type { Piece } from "../../game/entities";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types.ts";
 import type { TelescopedProps } from "../../base/TelescopeComponent.ts";
@@ -57,19 +58,7 @@ export function useHelpPanelState(
 ): HelpPanelStateInternal {
   const { base, dimension } = props.state;
 
-  const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
-
-  // A selection must not outlive the candidate space it belongs to: when the
-  // shell's `base`/`dimension` move (the §4.1 New Game rebuild, Phase 17), a
-  // piece picked in the old space is no longer a member of the new one —
-  // reset to the no-selection state rather than showing a set for a piece
-  // the selector no longer lists. The same "reset local UI state when its
-  // input moves" shape as the shell's `dialogDismissed` refill effect
-  // (`useAppState.ts`). Bails out (no re-render) on mount, where the value
-  // is already `null`.
-  useEffect(() => {
-    setSelectedPiece(null);
-  }, [base, dimension]);
+  const [rawSelection, setSelectedPiece] = useState<Piece | null>(null);
 
   // §5.10 item 1: the full candidate space — every `base^dimension` piece,
   // Phase 2's interned pool in pool order.
@@ -77,6 +66,26 @@ export function useHelpPanelState(
     () => candidateSpaceFor(dimension, base),
     [base, dimension],
   );
+
+  // A selection must not outlive the candidate space it belongs to: when the
+  // shell's `base`/`dimension` move (the §4.1 New Game rebuild, Phase 17), a
+  // piece picked in the old space is no longer a member of the new one —
+  // derive the effective selection synchronously during render rather than
+  // resetting it in a post-paint effect, which would leave the render
+  // triggered by the slice move computing both neighbor sets from the stale
+  // selection (the "two sets partition the candidate space" invariant
+  // visibly violated for one painted frame, and the selector showing a label
+  // matching no option). Membership is by value (`isSamePiece`), not
+  // reference: the pool is interned per `buildPiecePool` call, so a
+  // stale-space piece never shares a reference with the new pool (§8.7,
+  // `useHelpPanelDomain.ts`). The derived value is referentially stable
+  // (`rawSelection` itself, or `null`), so it cannot invalidate the memos
+  // below on unrelated re-renders.
+  const selectedPiece =
+    rawSelection === null ||
+    !candidatePieces.some((piece) => isSamePiece(piece, rawSelection))
+      ? null
+      : rawSelection;
 
   // §5.10 item 2: the selected piece's valid-neighbor set — the pure domain
   // tier's `buildPossibleNeighbors` with no exclusions. No selection → the
