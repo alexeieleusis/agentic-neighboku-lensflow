@@ -56,9 +56,14 @@ export const Default: StoryObj<typeof meta> = {
 
 /**
  * §4.1's "no prior value" default made visible: a slice holding dimension 2
- * (the §4.1 fallback) — 4×4 keeps the 2 on Start, 8×8 and above force it to
- * 3, and a later 6×6 keeps the forced 3 (the asymmetry carried forward
- * exactly as observed).
+ * (the §4.1 fallback). First open shows 8×8 with the slice's held dimension 2,
+ * not the forced 3: the initializer seeds the pending selection from
+ * `initialDimension(slice.dimension)` without running §4.1's size→dimension
+ * rule, so Start without touching the select commits 8×8 at dimension 2. All
+ * of the rule's observations therefore start from an explicit select change
+ * (`selectBoardSize` is where the rule applies) — 4×4 keeps the 2 on Start,
+ * 8×8 and above force it to 3, and a later 6×6 keeps the forced 3 (the
+ * asymmetry carried forward exactly as observed).
  */
 export const PriorDimensionTwo: StoryObj<typeof meta> = {
   args: { ...SLICE, size: 4, dimension: 2 },
