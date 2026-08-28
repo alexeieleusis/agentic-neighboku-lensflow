@@ -70,8 +70,12 @@ export interface CellDisplayViewModel {
   readonly backgroundColor: string;
   /** The placed piece — `null` for a blank cell showing only its droppable target. */
   readonly piece: Piece | null;
-  /** Placeholder digits for the minimal inline piece representation; `null` when blank. */
-  readonly pieceLabel: string | null;
+  /**
+   * The placed piece's image slice — the §7.2 parent→child flow into the shared
+   * `PieceDisplay` a filled cell renders (the same slice shape as `fitPieceImages`
+   * entries); `null` when the cell is blank.
+   */
+  readonly pieceImage: TelescopedProps<PieceDisplayState> | null;
   readonly pieceType: PieceType;
   /**
    * §5.6 droppable node ref: attached to the cell's root element to register it as the

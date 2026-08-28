@@ -17,16 +17,23 @@ import {
 } from "./pieceShapeTables";
 
 /**
- * §5.3 — the shared piece-rendering component (Shapes mode). It is `state,telescope →
- * usePieceDisplayViewModel → RenderPieceDisplay` (requirements §7.2) and is trivial-tier:
- * a lookup-table-driven SVG renderer with no local state or user actions. Faces-mode
- * rendering (§5.4, the image grid keyed by `h{h}e{e}m{m}.png`) is explicitly out of scope
- * here and lands in Phase 19.
+ * §5.3 + §5.4 — the shared piece-rendering component (both §4.2 skins). It is
+ * `state,telescope → usePieceDisplayViewModel → RenderPieceDisplay`
+ * (requirements §7.2) and is trivial-tier: a lookup-table-driven renderer with
+ * no local state or user actions. The slice's `pieceType` (§4.2) selects the
+ * branch: Shapes draws the §5.3 shape/stroke/fill SVG, Faces draws the §5.4
+ * image `/faces/h{h}e{e}m{m}.png` (one of the 27 pre-seeded `public/faces/*.png`
+ * assets — this component never authors or regenerates them).
  *
- * Rendering is a pure function of the piece value: the same `piece[0]/piece[1]/piece[2]`
- * always draws the same shape, stroke color, and fill color (no hidden state, no
- * randomness). The internal `PIECE_VIEWBOX` is mapped onto the requested `size` via the
- * SVG `viewBox`, so the component is usable at any display scale.
+ * Rendering is a pure function of the piece value and the skin: the same
+ * `piece[0]/piece[1]/piece[2]` always draws the same shape, stroke color, and
+ * fill color (Shapes) or the same face image (Faces) — no hidden state, no
+ * randomness. Because this one component owns both branches and every consumer
+ * (the board's fit-piece tooltip, the tray, the Help panel) feeds pieces through
+ * it, the §4.2 mode switch applies uniformly: no consumer carries a separate
+ * Faces-rendering implementation. The internal `PIECE_VIEWBOX` maps onto the
+ * requested `size` via the SVG `viewBox` (Shapes), and the `<img>` is pinned to
+ * `size` (Faces), so the component is usable at any display scale.
  */
 export const PieceDisplay: TelescopeComponent<PieceDisplayState> = function (
   props: TelescopedProps<PieceDisplayState>,
@@ -37,6 +44,52 @@ export const PieceDisplay: TelescopeComponent<PieceDisplayState> = function (
 function RenderPieceDisplay(
   viewModel: Readonly<PieceDisplayViewModel>,
 ): React.ReactElement {
+  if (viewModel.pieceType === "Faces") {
+    return RenderFacePiece(viewModel);
+  }
+  return RenderShapePiece(viewModel);
+}
+
+/**
+ * §5.4 branch: the piece's face image at the slice's `size`. A plain `<img>` —
+ * the asset is a static PNG, so no SVG machinery; `alt` carries the face's
+ * accessible name (the view model's `ariaLabel`), and `draggable={false}` keeps
+ * the browser's native image-drag from fighting dnd-kit when this piece is the
+ * tray's draggable node.
+ */
+function RenderFacePiece(
+  viewModel: Readonly<{
+    readonly faceImagePath: string;
+    readonly size: number;
+    readonly ariaLabel: string;
+  }>,
+): React.ReactElement {
+  const { faceImagePath, size, ariaLabel } = viewModel;
+  return (
+    <img
+      src={faceImagePath}
+      alt={ariaLabel}
+      width={size}
+      height={size}
+      draggable={false}
+    />
+  );
+}
+
+/**
+ * §5.3 branch: the piece's shape in its internal coordinate space. Purely
+ * presentational: given the precomputed Shapes view model, it only draws the
+ * SVG — all the data the shape needs (form, colors, stroke width) arrives
+ * already computed by `usePieceDisplayViewModel`.
+ */
+function RenderShapePiece(viewModel: {
+  readonly form: PieceForm;
+  readonly strokeColor: string;
+  readonly fillColor: string;
+  readonly strokeWidth: number;
+  readonly size: number;
+  readonly ariaLabel: string;
+}): React.ReactElement {
   const { form, strokeColor, fillColor, strokeWidth, size, ariaLabel } =
     viewModel;
 

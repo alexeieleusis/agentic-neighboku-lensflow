@@ -3,11 +3,7 @@ import type {
   CellDisplayState,
   CellDisplayViewModel,
 } from "./CellDisplay.types";
-import {
-  cssGridLine,
-  pieceLabelFor,
-  sectionColorFor,
-} from "./useCellDisplayDomain";
+import { cssGridLine, sectionColorFor } from "./useCellDisplayDomain";
 import { useCellDisplayState } from "./useCellDisplayState";
 import { useCellDisplayActions } from "./useCellDisplayActions";
 
@@ -16,8 +12,8 @@ import { useCellDisplayActions } from "./useCellDisplayActions";
  * own. The §5.6 droppable registration and the §5.2 hover/tap reveal state plus the
  * fit-hint derivations live in `useCellDisplayState`; the three user-interaction
  * handlers live in `useCellDisplayActions`; every pure cell derivation (1-indexed grid
- * lines, the placeholder label, the section fill, and the fit-count/tooltip gates)
- * lives in `useCellDisplayDomain`. This hook just composes the tiers and strips the
+ * lines, the section fill, and the fit-count/tooltip gates) lives in
+ * `useCellDisplayDomain`. This hook just composes the tiers and strips the
  * internals' setters from the public view model.
  */
 export function useCellDisplayViewModel(
@@ -32,7 +28,7 @@ export function useCellDisplayViewModel(
     gridColumn: cssGridLine(col),
     backgroundColor: sectionColorFor(row, col, size),
     piece,
-    pieceLabel: pieceLabelFor(piece),
+    pieceImage: internals.pieceImage,
     pieceType,
     droppableNodeRef: internals.droppableNodeRef,
     isOver: internals.isOver,

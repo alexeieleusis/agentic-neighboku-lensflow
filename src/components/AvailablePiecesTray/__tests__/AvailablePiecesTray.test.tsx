@@ -61,8 +61,9 @@ function trayState(
   game: Game,
   availablePieceUniqueCell = false,
   pieceCells = false,
+  pieceType: "Shapes" | "Faces" = "Shapes",
 ): AvailablePiecesTrayState {
-  return { game, availablePieceUniqueCell, pieceCells };
+  return { game, availablePieceUniqueCell, pieceCells, pieceType };
 }
 
 function renderTray(state: AvailablePiecesTrayState) {

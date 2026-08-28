@@ -18,8 +18,8 @@ import { RowDisplay } from "../RowDisplay/RowDisplay";
  * the §3.3 `sectionSize × sectionSize` sub-grid tiling, so section membership is
  * visually legible). Phase 12 (§5.2) rides on this grid: the cells show their
  * fit-count hint and hover/tap fit-pieces tooltip from the `cellToFitPieces` cache
- * this board slice carries. No shared piece-rendering component yet on filled cells
- * (Phase 6) — they show a minimal placeholder.
+ * this board slice carries. Filled cells render their piece through the shared
+ * Phase 6 `PieceDisplay`, so the §4.2 Shapes/Faces skin applies to the board too.
  */
 export const BoardDisplay: TelescopeComponent<BoardDisplayState> = function (
   props: TelescopedProps<BoardDisplayState>,

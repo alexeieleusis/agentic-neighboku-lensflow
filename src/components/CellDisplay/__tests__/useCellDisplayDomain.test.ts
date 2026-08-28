@@ -3,6 +3,8 @@ import { createPiece, type Piece } from "../../../game/entities";
 import type { CellFitCache } from "../../../game/gameBuilder";
 import { cellIndex } from "../../../game/gameBuilder";
 import {
+  CELL_PIECE_IMAGE_PX,
+  FIT_PIECE_IMAGE_PX,
   cellDroppableId,
   cellFromDroppableId,
   cssGridLine,
@@ -10,7 +12,6 @@ import {
   fitPieceCountForCell,
   fitPiecesForCell,
   fitPiecesTooltipIsOn,
-  pieceLabelFor,
   sectionColorFor,
 } from "../useCellDisplayDomain";
 
@@ -126,10 +127,9 @@ describe("CellDisplay domain (moved view-model helpers)", () => {
     expect(cssGridLine(15)).toBe(16);
   });
 
-  it("pieceLabelFor joins the digits with spaces, null for a blank cell", () => {
-    expect(pieceLabelFor(null)).toBeNull();
-    expect(pieceLabelFor(createPiece([1, 2, 0], 3, 3))).toBe("1 2 0");
-    expect(pieceLabelFor(createPiece([0], 1, 3))).toBe("0");
+  it("piece-image pixel edges are positive (filled cell and its fit tooltips)", () => {
+    expect(CELL_PIECE_IMAGE_PX).toBeGreaterThan(0);
+    expect(FIT_PIECE_IMAGE_PX).toBeGreaterThan(0);
   });
 
   it("sectionColorFor is stable within a section and distinct across sections", () => {

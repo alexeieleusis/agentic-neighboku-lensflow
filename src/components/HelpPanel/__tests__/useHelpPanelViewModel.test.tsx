@@ -3,16 +3,26 @@ import { act, renderHook } from "@testing-library/react";
 import { Telescope } from "telescopejs";
 import { useHelpPanelViewModel } from "../useHelpPanelViewModel";
 import { HELP_PIECE_IMAGE_PX } from "../useHelpPanelDomain";
+import { faceImagePathFor } from "../../PieceDisplay/pieceFaceTables";
+import type { PieceType } from "../../CellDisplay/CellDisplay.types";
 import type { HelpPanelState } from "../HelpPanel.types";
+
+/** The `renderHelpPanelSlice`/inline-rerender fixture's slice-movable fields. */
+interface MovableSlice {
+  base: number;
+  dimension: number;
+  pieceType: PieceType;
+}
 
 /** The shipped configuration: base 3, dimension 3 — the 27-piece candidate space. */
 function renderHelpPanel(overrides: Partial<HelpPanelState> = {}) {
   return renderHook(() =>
     useHelpPanelViewModel({
-      state: { base: 3, dimension: 3, ...overrides },
+      state: { base: 3, dimension: 3, pieceType: "Shapes", ...overrides },
       telescope: Telescope.of<HelpPanelState>({
         base: 3,
         dimension: 3,
+        pieceType: "Shapes",
         ...overrides,
       }),
     }),
@@ -21,19 +31,28 @@ function renderHelpPanel(overrides: Partial<HelpPanelState> = {}) {
 
 /**
  * The slice-movable variant of `renderHelpPanel`: `initialProps` keeps `state`
- * and `telescope` re-derived from the same `{ base, dimension }` on every
- * render, so `rerender` can move the slice — the Phase 17 New Game path
- * re-derives `HELP_PANEL_LENS` at a different size, which the closed-over
- * `renderHelpPanel` cannot express.
+ * and `telescope` re-derived from the same `{ base, dimension, pieceType }` on
+ * every render, so `rerender` can move the slice — the Phase 17 New Game path
+ * re-derives `HELP_PANEL_LENS` at a different size, and the Phase 19 §4.2 skin
+ * toggle moves it between the two §5.4 skins, neither of which the closed-over
+ * `renderHelpPanel` can express.
  */
 function renderHelpPanelSlice() {
   return renderHook(
-    ({ base, dimension }) =>
+    (slice: MovableSlice) =>
       useHelpPanelViewModel({
-        state: { base, dimension },
-        telescope: Telescope.of<HelpPanelState>({ base, dimension }),
+        state: {
+          base: slice.base,
+          dimension: slice.dimension,
+          pieceType: slice.pieceType,
+        },
+        telescope: Telescope.of<HelpPanelState>({
+          base: slice.base,
+          dimension: slice.dimension,
+          pieceType: slice.pieceType,
+        }),
       }),
-    { initialProps: { base: 3, dimension: 3 } },
+    { initialProps: { base: 3, dimension: 3, pieceType: "Shapes" } },
   );
 }
 
@@ -181,7 +200,7 @@ describe("useHelpPanelViewModel (§5.10 selection reset on slice move)", () => {
 
     // The Phase 17 New Game commit re-derives `HELP_PANEL_LENS` at a
     // different size; the shell re-renders the panel against the new slice.
-    rerender({ base: 3, dimension: 2 });
+    rerender({ base: 3, dimension: 2, pieceType: "Shapes" });
     const vm = result.current;
     // Without the reset, the panel would keep rendering sets for [0,0,0] —
     // a piece no longer in the 9-piece space — and the selector would show a
@@ -197,14 +216,22 @@ describe("useHelpPanelViewModel (§5.10 selection reset on slice move)", () => {
   it("resets within the slice-move render itself: no post-paint reset frame (a stale selection never computes a set against the new space)", () => {
     let renders = 0;
     const { result, rerender } = renderHook(
-      ({ base, dimension }) => {
+      (slice: MovableSlice) => {
         renders += 1;
         return useHelpPanelViewModel({
-          state: { base, dimension },
-          telescope: Telescope.of<HelpPanelState>({ base, dimension }),
+          state: {
+            base: slice.base,
+            dimension: slice.dimension,
+            pieceType: slice.pieceType,
+          },
+          telescope: Telescope.of<HelpPanelState>({
+            base: slice.base,
+            dimension: slice.dimension,
+            pieceType: slice.pieceType,
+          }),
         });
       },
-      { initialProps: { base: 3, dimension: 3 } },
+      { initialProps: { base: 3, dimension: 3, pieceType: "Shapes" } },
     );
 
     act(() => {
@@ -221,11 +248,74 @@ describe("useHelpPanelViewModel (§5.10 selection reset on slice move)", () => {
     // in this render — one painted frame in which "the two sets partition
     // the candidate space" does not hold — and then re-rendered again after
     // clearing.
-    rerender({ base: 3, dimension: 2 });
+    rerender({ base: 3, dimension: 2, pieceType: "Shapes" });
     expect(renders).toBe(3);
     const vm = result.current;
     expect(vm.selectedPiece).toBeNull();
     expect(vm.validNeighbors).toHaveLength(0);
     expect(vm.invalidNeighbors).toHaveLength(0);
+  });
+});
+
+describe("useHelpPanelViewModel (§5.4 pieceType reaches every piece display)", () => {
+  it("forwards the slice's pieceType into every piece-image slice it hands out", () => {
+    const { result } = renderHelpPanel({ pieceType: "Faces" });
+
+    act(() => {
+      result.current.onPieceSelect("0 0 0");
+    });
+    const vm = result.current;
+    const entries = [
+      ...vm.candidatePieces,
+      ...vm.validNeighbors,
+      ...vm.invalidNeighbors,
+    ];
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(entry.image.state.pieceType).toBe("Faces");
+      expect(entry.image.state.piece.join(",")).toBe(entry.piece.join(","));
+      expect(entry.image.state.size).toBe(HELP_PIECE_IMAGE_PX);
+      // The face image path the slice renders is the §5.4 mapping of the
+      // entry's own piece (`pieceFaceTables`, the shared component's table —
+      // the panel builds no second piece-rendering path).
+      const digits = entry.piece;
+      const mouth = digits.length > 2 ? digits[2] : 0;
+      expect(faceImagePathFor(digits)).toBe(
+        `/faces/h${digits[0]}e${digits[1]}m${mouth}.png`,
+      );
+    }
+  });
+
+  it("a §4.2 skin toggle re-derives the piece-image slices: Shapes → Faces on the same selection", () => {
+    const { result, rerender } = renderHelpPanelSlice();
+
+    act(() => {
+      result.current.onPieceSelect("0 0 0");
+    });
+    const shapesEntries = [
+      ...result.current.candidatePieces,
+      ...result.current.validNeighbors,
+      ...result.current.invalidNeighbors,
+    ];
+    expect(
+      shapesEntries.every((entry) => entry.image.state.pieceType === "Shapes"),
+    ).toBe(true);
+
+    // The Preferences panel's pieceType commit re-derives `HELP_PANEL_LENS`
+    // with the new skin; the shell re-renders the panel against the new slice
+    // and every piece-image slice switches with it.
+    rerender({ base: 3, dimension: 3, pieceType: "Faces" });
+    const facesEntries = [
+      ...result.current.candidatePieces,
+      ...result.current.validNeighbors,
+      ...result.current.invalidNeighbors,
+    ];
+    expect(
+      facesEntries.every((entry) => entry.image.state.pieceType === "Faces"),
+    ).toBe(true);
+    // The selection and the sets themselves are skin-independent.
+    expect(result.current.selectedLabel).toBe("0 0 0");
+    expect(result.current.validNeighbors).toHaveLength(12);
+    expect(result.current.invalidNeighbors).toHaveLength(15);
   });
 });

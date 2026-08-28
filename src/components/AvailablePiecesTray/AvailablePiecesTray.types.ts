@@ -1,18 +1,23 @@
 import type { TelescopedProps } from "../../base/TelescopeComponent";
 import type { Piece } from "../../game/entities";
 import type { Cell, Game } from "../../game/gameBuilder";
+import type { PieceType } from "../CellDisplay/CellDisplay.types";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
 
 /**
  * §5.5 — the complete, self-describing state slice for the available-pieces tray: the
  * move engine's `Game` in its entirety, plus the two tray-scoped §4.2 hint flags
- * (mirror-image of `AppPreferences.hints.availablePieceUniqueCell` / `.pieceCells`).
- * The slice carries the whole `Game` (not a picked few of its fields) for two reasons:
+ * (mirror-image of `AppPreferences.hints.availablePieceUniqueCell` / `.pieceCells`),
+ * and — since Phase 19 (§5.4) — the shell's §4.2 `pieceType` skin preference. The
+ * slice carries the whole `Game` (not a picked few of its fields) for two reasons:
  * the render path reads three of its fields (`size`, `availablePieces`,
  * `pieceToFitCells` — §5.5's two hint bullets), and the commit path — Phase 13's
  * click-to-place — hands the piece and the clicked cell to Phase 3's `placePiece`,
  * which needs the entire `Game` to produce the next one. A partial slice would force
  * the commit to parallel the engine's bookkeeping; the whole game does not.
+ * `pieceType` rides the slice so each column's piece-image slice can forward it into
+ * the shared `PieceDisplay` (§5.4: the mode switch reaches the tray's piece images
+ * through the slice; no separate Faces-rendering path in this component).
  */
 export interface AvailablePiecesTrayState {
   readonly game: Game;
@@ -20,6 +25,8 @@ export interface AvailablePiecesTrayState {
   readonly availablePieceUniqueCell: boolean;
   /** §4.2 `hintPieceCells` (this repo's naming): the click-to-place cell list. */
   readonly pieceCells: boolean;
+  /** §4.2/§5.4 (Phase 19): the skin the tray's piece images render in. */
+  readonly pieceType: PieceType;
 }
 
 /**

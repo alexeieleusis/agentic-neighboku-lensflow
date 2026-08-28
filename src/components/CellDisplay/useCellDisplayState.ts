@@ -4,8 +4,9 @@ import { useDroppable } from "@dnd-kit/core";
 import type { Piece } from "../../game/entities";
 import type { TelescopedProps } from "../../base/TelescopeComponent";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
-import type { CellDisplayState } from "./CellDisplay.types";
+import type { CellDisplayState, PieceType } from "./CellDisplay.types";
 import {
+  CELL_PIECE_IMAGE_PX,
   FIT_PIECE_IMAGE_PX,
   cellDroppableId,
   fitCountHintIsOn,
@@ -40,6 +41,8 @@ export interface CellDisplayInternals {
   readonly fitCountVisible: boolean;
   readonly fitPiecesTooltipOpen: boolean;
   readonly fitPieceImages: readonly TelescopedProps<PieceDisplayState>[];
+  /** The filled cell's own piece-image slice; `null` while the cell is blank. */
+  readonly pieceImage: TelescopedProps<PieceDisplayState> | null;
   readonly setHovered: (hovered: boolean) => void;
   readonly setTapped: (tapped: boolean) => void;
   readonly toggleTapped: () => void;
@@ -50,6 +53,7 @@ export function useCellDisplayState(
 ): CellDisplayInternals {
   const {
     size,
+    pieceType,
     row,
     col,
     piece,
@@ -101,14 +105,36 @@ export function useCellDisplayState(
 
   // §7.2 parent→child flow into the shared piece renderer: one magnified
   // piece-image slice per piece the tooltip lists. Same shape as the tray's column
-  // slices (`useAvailablePiecesTrayViewModel.ts`).
+  // slices (`useAvailablePiecesTrayState.ts`). Phase 19 (§5.4): the slice also
+  // carries this cell's board-wide `pieceType`, so a Preferences skin toggle
+  // re-derives these thumbnails and the board's piece displays switch
+  // Shapes↔Faces on the same emission.
   const fitPieceImages = useMemo(
     () =>
       fitPieces.map((fitPiece) => ({
-        state: { piece: fitPiece, size: FIT_PIECE_IMAGE_PX },
-        telescope: props.telescope.magnify(pieceImageLens(fitPiece)),
+        state: pieceImageState(fitPiece, pieceType, FIT_PIECE_IMAGE_PX),
+        telescope: props.telescope.magnify(
+          pieceImageLens(fitPiece, FIT_PIECE_IMAGE_PX),
+        ),
       })),
-    [fitPieces, props.telescope],
+    [fitPieces, pieceType, props.telescope],
+  );
+
+  // The filled cell's own piece, at the cell's (larger) piece scale: the same
+  // §7.2 magnified slice shape, `null` while blank. The board keeps its pieces by
+  // interned pool reference, so the `piece` reference identity tracks occupancy —
+  // the slice re-derives on a real occupancy change and on a `pieceType` toggle.
+  const pieceImage = useMemo(
+    () =>
+      piece === null
+        ? null
+        : {
+            state: pieceImageState(piece, pieceType, CELL_PIECE_IMAGE_PX),
+            telescope: props.telescope.magnify(
+              pieceImageLens(piece, CELL_PIECE_IMAGE_PX),
+            ),
+          },
+    [piece, pieceType, props.telescope],
   );
 
   const toggleTapped = useCallback(
@@ -123,24 +149,38 @@ export function useCellDisplayState(
     fitCountVisible,
     fitPiecesTooltipOpen,
     fitPieceImages,
+    pieceImage,
     setHovered,
     setTapped,
     toggleTapped,
   };
 }
 
+/** `CellDisplayState` fields → the piece-image slice one `PieceDisplay` renders at `sizePx`. */
+function pieceImageState(
+  piece: Piece,
+  pieceType: PieceType,
+  sizePx: number,
+): PieceDisplayState {
+  return { piece, size: sizePx, pieceType };
+}
+
 /**
- * The magnification focusing this cell's telescope down to the piece image one tooltip
- * entry renders. Same deliberate asymmetry as the tray's `pieceImageLens`
- * (`useAvailablePiecesTrayViewModel.ts`): the fit pieces are immutable domain values
- * from the shared Phase 3 cache and the render size is a component constant, so no
- * field of this slice can ever change — writes through it are the identity no-op.
+ * The magnification focusing this cell's telescope down to the piece image one of this
+ * cell's `PieceDisplay`s renders (the filled piece or one tooltip entry). Same
+ * deliberate asymmetry as the tray's `pieceImageLens`
+ * (`useAvailablePiecesTrayState.ts`): the pieces are immutable domain values and the
+ * render size is a component constant, so the only field of this slice that can move
+ * is `pieceType` — and it moves only as the shell's §4.2 preference does (Phase 19,
+ * §5.4), re-projected by this getter from the cell slice. Writes through it are the
+ * identity no-op.
  */
 function pieceImageLens(
   piece: Piece,
+  sizePx: number,
 ): Lens<CellDisplayState, PieceDisplayState> {
   return new Lens(
-    () => ({ piece, size: FIT_PIECE_IMAGE_PX }),
+    (cellState) => pieceImageState(piece, cellState.pieceType, sizePx),
     (_pieceImage, cellState) => cellState,
   );
 }

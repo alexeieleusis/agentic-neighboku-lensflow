@@ -3,6 +3,7 @@ import { Lens } from "telescopejs";
 import type { Telescope } from "telescopejs";
 import { isSamePiece } from "../../game/entities";
 import type { Piece } from "../../game/entities";
+import type { PieceType } from "../CellDisplay/CellDisplay.types.ts";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types.ts";
 import type { TelescopedProps } from "../../base/TelescopeComponent.ts";
 import type { HelpPanelPieceEntry, HelpPanelState } from "./HelpPanel.types.ts";
@@ -56,7 +57,7 @@ const NO_PIECES: readonly Piece[] = [];
 export function useHelpPanelState(
   props: Readonly<TelescopedProps<HelpPanelState>>,
 ): HelpPanelStateInternal {
-  const { base, dimension } = props.state;
+  const { base, dimension, pieceType } = props.state;
 
   const [rawSelection, setSelectedPiece] = useState<Piece | null>(null);
 
@@ -112,18 +113,30 @@ export function useHelpPanelState(
   // Each set's rendered form: one entry per piece, each carrying its own
   // magnified piece-image slice for the shared Phase 6 `PieceDisplay` —
   // the §7.2 parent→child flow (the tray column's / cell tooltip's
-  // piece-image convention).
+  // piece-image convention). Phase 19 (§5.4): the slice also carries the
+  // panel's `pieceType`, so a Preferences skin toggle re-derives these
+  // entries (the slice re-emits) and every piece display in the panel
+  // switches Shapes↔Faces on the same emission.
   const candidateEntries = useMemo(
-    () => candidatePieces.map((piece) => toPieceEntry(piece, props.telescope)),
-    [candidatePieces, props.telescope],
+    () =>
+      candidatePieces.map((piece) =>
+        toPieceEntry(piece, pieceType, props.telescope),
+      ),
+    [candidatePieces, pieceType, props.telescope],
   );
   const validEntries = useMemo(
-    () => validPieces.map((piece) => toPieceEntry(piece, props.telescope)),
-    [validPieces, props.telescope],
+    () =>
+      validPieces.map((piece) =>
+        toPieceEntry(piece, pieceType, props.telescope),
+      ),
+    [validPieces, pieceType, props.telescope],
   );
   const invalidEntries = useMemo(
-    () => invalidPieces.map((piece) => toPieceEntry(piece, props.telescope)),
-    [invalidPieces, props.telescope],
+    () =>
+      invalidPieces.map((piece) =>
+        toPieceEntry(piece, pieceType, props.telescope),
+      ),
+    [invalidPieces, pieceType, props.telescope],
   );
 
   return {
@@ -139,34 +152,40 @@ export function useHelpPanelState(
 /** One set member's rendered form: the value, its digit label, its image slice. */
 function toPieceEntry(
   piece: Piece,
+  pieceType: PieceType,
   telescope: Telescope<HelpPanelState>,
 ): HelpPanelPieceEntry {
   return {
     piece,
     label: pieceLabel(piece),
     image: {
-      state: { piece, size: HELP_PIECE_IMAGE_PX },
+      state: pieceImageState(piece, pieceType),
       telescope: telescope.magnify(pieceImageLens(piece)),
     },
   };
 }
 
-/** `HelpPanelState` → the piece-image slice one entry's `PieceDisplay` renders. */
-function pieceImageState(piece: Piece): PieceDisplayState {
-  return { piece, size: HELP_PIECE_IMAGE_PX };
+/** `HelpPanelState` fields → the piece-image slice one entry's `PieceDisplay` renders. */
+function pieceImageState(
+  piece: Piece,
+  pieceType: PieceType,
+): PieceDisplayState {
+  return { piece, size: HELP_PIECE_IMAGE_PX, pieceType };
 }
 
 /**
  * The magnification focusing this panel's telescope down to the piece image
  * one entry renders. Same deliberate asymmetry as the tray's and the cell
  * tooltip's piece-image lenses: the piece value is an immutable domain value
- * and the render size is a panel-level layout constant, so no field of this
- * slice can ever change — writes through it return the parent slice
- * unchanged (identity no-op) and the magnified stream simply mirrors.
+ * and the render size is a panel-level layout constant, so the only field of
+ * this slice that can move is `pieceType` — and it moves only as the shell's
+ * §4.2 preference does (Phase 19, §5.4), re-projected by this getter from the
+ * panel slice. Writes through it return the parent slice unchanged (identity
+ * no-op) and the magnified stream simply mirrors.
  */
 function pieceImageLens(piece: Piece): Lens<HelpPanelState, PieceDisplayState> {
   return new Lens(
-    () => pieceImageState(piece),
+    (panel) => pieceImageState(piece, panel.pieceType),
     (_pieceImage, state) => state,
   );
 }

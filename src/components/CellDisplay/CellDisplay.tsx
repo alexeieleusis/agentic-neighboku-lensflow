@@ -23,10 +23,11 @@ import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
  * badge when `hintFitPieceCount` is on (never on a filled cell, never when the
  * preference is off), and a hover/tap tooltip listing every piece that would fit via
  * shared `PieceDisplay` thumbnails when `showFitPiecesOnHover` is on — both derived
- * from the Phase 3 `cellToFitPieces` cache via the view model. A filled cell shows a
- * minimal inline placeholder for its piece; a later phase swaps in the shared
- * `PieceDisplay` there. The actual drop is committed by the shell's `handleDragEnd` —
- * this cell only advertises the target.
+ * from the Phase 3 `cellToFitPieces` cache via the view model. A filled cell renders
+ * its piece through the shared `PieceDisplay` (fed by a magnified piece-image slice,
+ * the same §7.2 parent→child flow as the tooltip thumbnails and the tray columns, so
+ * the §4.2 Shapes/Faces skin toggle reaches it uniformly). The actual drop is
+ * committed by the shell's `handleDragEnd` — this cell only advertises the target.
  */
 export const CellDisplay: TelescopeComponent<CellDisplayState> = function (
   props: TelescopedProps<CellDisplayState>,
@@ -41,7 +42,8 @@ function RenderCellDisplay(
     gridRow,
     gridColumn,
     backgroundColor,
-    pieceLabel,
+    piece,
+    pieceImage,
     isOver,
     fitCount,
     fitCountVisible,
@@ -52,7 +54,6 @@ function RenderCellDisplay(
     onCellMouseLeave,
     onCellTap,
   } = viewModel;
-  const isFilled = pieceLabel !== null;
 
   // The §5.2 tooltip wraps the §5.6 cell root: controlled `open`/`title` (the view model
   // precomputes both), and MUI's own trigger listeners and interactivity disabled —
@@ -93,22 +94,17 @@ function RenderCellDisplay(
           borderRadius: 0.5,
         }}
       >
-        {isFilled ? (
+        {piece !== null && pieceImage !== null ? (
+          // §5.3/§5.4 — the placed piece via the shared `PieceDisplay` (both §4.2
+          // skins), at the cell's piece scale; the wrapper's accessible name keeps the
+          // piece's digits and the cell's position.
           <Box
             role="img"
-            aria-label={`Piece ${pieceLabel}, row ${gridRow}, column ${gridColumn}`}
-            sx={{
-              px: 0.5,
-              py: 0.25,
-              maxWidth: "90%",
-              borderRadius: 0.5,
-              backgroundColor: "common.black",
-              opacity: 0.4,
-            }}
+            aria-label={`Piece ${piece.join(
+              " ",
+            )}, row ${gridRow}, column ${gridColumn}`}
           >
-            <Typography variant="caption" sx={{ whiteSpace: "nowrap" }}>
-              {pieceLabel}
-            </Typography>
+            <PieceDisplay {...pieceImage} />
           </Box>
         ) : (
           // The §5.6 droppable target plus the Phase 12 §5.2 hint surface: the dashed
