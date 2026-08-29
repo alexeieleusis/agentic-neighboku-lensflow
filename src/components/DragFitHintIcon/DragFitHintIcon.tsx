@@ -23,7 +23,9 @@ import { useDragFitHintIconViewModel } from "./useDragFitHintIconViewModel";
  * Renders into the top-bar slot Phase 4 reserved for the drag-fit-hint icon
  * (`App`'s first top-bar element): exactly the three documented visual states —
  * the info icon for `None`/`Unknown`, the thumbs-up for `Ok`, the thumbs-down for
- * `NotOk` — with the Phase 4 slot tooltip kept on the element.
+ * `NotOk`. The element's tooltip states what the icon signals (Phase 20: the Phase 4
+ * slot's placeholder copy — which described a rotate gesture this game has no
+ * mechanic for — was tightened to describe the drag-fit hint itself).
  */
 export const DragFitHintIcon: TelescopeComponent<DragHint> = function (
   props: TelescopedProps<DragHint>,
@@ -47,7 +49,7 @@ function RenderDragFitHintIcon(
   }
 
   return (
-    <Tooltip title="Drag to place; right-click or swipe to rotate">
+    <Tooltip title="Shows whether the dragged piece fits the cell under it">
       <IconButton
         size="small"
         aria-label={viewModel.ariaLabel}
