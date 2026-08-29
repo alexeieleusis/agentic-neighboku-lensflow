@@ -9,9 +9,9 @@ import type { HelpPanelState } from "../HelpPanel.types";
 
 /** The `renderHelpPanelSlice`/inline-rerender fixture's slice-movable fields. */
 interface MovableSlice {
-  base: number;
-  dimension: number;
-  pieceType: PieceType;
+  readonly base: number;
+  readonly dimension: number;
+  readonly pieceType: PieceType;
 }
 
 /** The shipped configuration: base 3, dimension 3 — the 27-piece candidate space. */
