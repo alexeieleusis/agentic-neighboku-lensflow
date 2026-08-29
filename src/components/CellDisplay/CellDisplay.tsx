@@ -10,7 +10,10 @@ import type {
   CellDisplayViewModel,
 } from "./CellDisplay.types";
 import { useCellDisplayViewModel } from "./useCellDisplayViewModel";
-import { FIT_PIECE_IMAGE_PX } from "./useCellDisplayDomain";
+import {
+  CELL_PIECE_INSET_PX,
+  FIT_PIECE_IMAGE_PX,
+} from "./useCellDisplayDomain";
 import { PieceDisplay } from "../PieceDisplay/PieceDisplay";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
 
@@ -96,13 +99,25 @@ function RenderCellDisplay(
       >
         {piece !== null && pieceImage !== null ? (
           // §5.3/§5.4 — the placed piece via the shared `PieceDisplay` (both §4.2
-          // skins), at the cell's piece scale; the wrapper's accessible name keeps the
-          // piece's digits and the cell's position.
+          // skins), stretched to fill the cell's interior: the wrapper boxes the
+          // cell minus `CELL_PIECE_INSET_PX` (the piece box is `aspectRatio: "1"`
+          // as a fallback should the percentage height ever fail to resolve), and
+          // the rendered element — the Faces `<img>` or the Shapes `<svg>` — is
+          // pinned to the wrapper's full box. The slice's own `CELL_PIECE_IMAGE_PX`
+          // edge then acts only as the element's intrinsic/fallback size. The
+          // wrapper's accessible name keeps the piece's digits and the cell's
+          // position.
           <Box
             role="img"
             aria-label={`Piece ${piece.join(
               " ",
             )}, row ${gridRow}, column ${gridColumn}`}
+            sx={{
+              width: `calc(100% - ${CELL_PIECE_INSET_PX}px)`,
+              height: `calc(100% - ${CELL_PIECE_INSET_PX}px)`,
+              aspectRatio: "1",
+              "& img, & svg": { width: "100%", height: "100%" },
+            }}
           >
             <PieceDisplay {...pieceImage} />
           </Box>

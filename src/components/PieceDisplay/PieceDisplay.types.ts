@@ -44,7 +44,8 @@ export interface PieceShapeAttributes {
  */
 export type PieceDisplayShapesViewModel = {
   readonly pieceType: "Shapes";
-} & PieceShapeAttributes & PieceDisplaySized;
+} & PieceShapeAttributes &
+  PieceDisplaySized;
 
 /**
  * Everything `RenderPieceDisplay` needs for the §5.4 Faces branch, precomputed by

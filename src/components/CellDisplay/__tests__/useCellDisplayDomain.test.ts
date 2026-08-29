@@ -4,6 +4,7 @@ import type { CellFitCache } from "../../../game/gameBuilder";
 import { cellIndex } from "../../../game/gameBuilder";
 import {
   CELL_PIECE_IMAGE_PX,
+  CELL_PIECE_INSET_PX,
   FIT_PIECE_IMAGE_PX,
   cellDroppableId,
   cellFromDroppableId,
@@ -130,6 +131,12 @@ describe("CellDisplay domain (moved view-model helpers)", () => {
   it("piece-image pixel edges are positive (filled cell and its fit tooltips)", () => {
     expect(CELL_PIECE_IMAGE_PX).toBeGreaterThan(0);
     expect(FIT_PIECE_IMAGE_PX).toBeGreaterThan(0);
+  });
+
+  it("the filled cell's piece inset is a small, symmetric positive edge", () => {
+    expect(CELL_PIECE_INSET_PX).toBeGreaterThan(0);
+    expect(CELL_PIECE_INSET_PX).toBeLessThan(CELL_PIECE_IMAGE_PX);
+    expect(CELL_PIECE_INSET_PX % 2).toBe(0);
   });
 
   it("sectionColorFor is stable within a section and distinct across sections", () => {
