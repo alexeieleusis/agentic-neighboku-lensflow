@@ -12,7 +12,7 @@ import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
  * that still import them bottom-up (`RowDisplay`, `BoardDisplay`, the app shell).
  */
 export { PIECE_TYPES } from "../../game/entities";
-export type { PieceType };
+export type { PieceType } from "../../game/entities";
 
 /**
  * One board cell's placement data: its zero-based position plus the piece occupying it
