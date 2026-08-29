@@ -15,14 +15,14 @@ import {
  */
 
 describe("useNewGamePanelDomain (§4.1 size spec)", () => {
-  it("specs exactly the five §4.1 board sizes, in select order — no more and no fewer", () => {
-    expect(BOARD_SIZES).toEqual([4, 6, 8, 9, 12]);
-    expect(BOARD_SIZES).toHaveLength(5);
+  it("specs exactly the six §4.1 board sizes, in select order — no more and no fewer", () => {
+    expect(BOARD_SIZES).toEqual([4, 6, 8, 9, 12, 16]);
+    expect(BOARD_SIZES).toHaveLength(6);
   });
 
   it("specs §5.9's first-open default of 8×8", () => {
     expect(DEFAULT_BOARD_SIZE).toBe(8);
-    // The default is one of the five selectable sizes.
+    // The default is one of the six selectable sizes.
     expect(BOARD_SIZES).toContain(DEFAULT_BOARD_SIZE);
   });
 

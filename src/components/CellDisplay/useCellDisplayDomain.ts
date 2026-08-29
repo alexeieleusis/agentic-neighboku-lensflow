@@ -49,9 +49,9 @@ export const FIT_PIECE_IMAGE_PX = 32;
 /**
  * Pixel edge the shared Phase 6 `PieceDisplay` renders the placed piece at inside a
  * filled board cell. A rebuild layout choice, at the same scale as this cell's own
- * §5.2 fit-piece thumbnails: the largest supported board (12×12) leaves ~47px of
- * interior per cell at the shell's bounded width, so a fixed edge must stay well
- * under that to fit every board size.
+ * §5.2 fit-piece thumbnails: the largest supported board (16×16) leaves the
+ * least interior per cell at the shell's bounded width, so a fixed edge must
+ * stay well under that to fit every board size.
  */
 export const CELL_PIECE_IMAGE_PX = 32;
 
