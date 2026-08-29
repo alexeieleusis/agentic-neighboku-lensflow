@@ -73,7 +73,7 @@ function displayedSize(): string {
 }
 
 describe("NewGamePanel (§5.9)", () => {
-  it("renders one Board Size select with the six §4.1 options and a Start button", () => {
+  it("renders one Board Size select with the five §4.1 options and a Start button", () => {
     renderPanel();
 
     // The panel's two controls, §5.9: "A single Board Size select … and a
@@ -83,7 +83,7 @@ describe("NewGamePanel (§5.9)", () => {
     expect(select).toBeTruthy();
     expect(start).toBeTruthy();
 
-    // Open the menu: exactly the six §4.1 options, in order, no more.
+    // Open the menu: exactly the five §4.1 options, in order, no more.
     openSizeSelect();
     const options = screen.getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual([
@@ -92,7 +92,6 @@ describe("NewGamePanel (§5.9)", () => {
       "8×8",
       "9×9",
       "12×12",
-      "16×16",
     ]);
   });
 

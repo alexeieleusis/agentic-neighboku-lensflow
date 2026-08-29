@@ -16,9 +16,9 @@ import type { NewGamePanelSelection } from "./NewGamePanel.types.ts";
 
 /**
  * §4.1 — the six selectable board sizes, in select order: 4×4, 6×6, 8×8,
- * 9×9, 12×12, 16×16 — no more and no fewer (requirements §4.1, §8.2's)
+ * 9×9, 12×12 — no more and no fewer (requirements §4.1, §8.2's)
  */
-export const BOARD_SIZES: readonly number[] = [4, 6, 8, 9, 12, 16];
+export const BOARD_SIZES: readonly number[] = [4, 6, 8, 9, 12];
 
 /** §5.9 — the Board Size select's first-open default: 8×8. */
 export const DEFAULT_BOARD_SIZE = 8;

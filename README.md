@@ -36,7 +36,7 @@ solvability indicator turns positive again.
 - **Undo** — the top-bar undo button takes back your last placement (disabled when
   there is nothing to undo).
 - **New game** — the top-bar new-game button opens the New Game panel: pick a board
-  size (**4×4, 6×6, 8×8, 9×9, 12×12, 16×16**) and press Start. Sizes 8×8 and up force
+  size (**4×4, 6×6, 8×8, 9×9, 12×12**) and press Start. Sizes 8×8 and up force
   the pieces to the 3-attribute (Shapes/Faces-compatible) space; smaller sizes keep
   the current attribute count.
 - **Preferences** — the top-bar gear opens the Preferences panel with one toggle per

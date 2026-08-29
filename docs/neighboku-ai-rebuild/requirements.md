@@ -37,7 +37,7 @@ must hold simultaneously:
 
 The game ships two visual skins for the same underlying attribute space: geometric
 **Shapes** (form/border-color/fill-color) and cartoon **Faces** (hair/eyes/mouth). It
-supports configurable board sizes (4×4 up to 16×16), an extensive set of optional hints,
+supports configurable board sizes (4×4 up to 12×12), an extensive set of optional hints,
 drag-and-drop (desktop and mobile) plus a click-to-place fallback, undo, and
 preference persistence.
 
@@ -141,7 +141,7 @@ shown, using `gameIsSolvable` to pick a success or failure state.
 
 ### 4.1 Selectable board sizes
 
-The New Game panel offers exactly these sizes: **4×4, 6×6, 8×8, 9×9, 12×12, 16×16**.
+The New Game panel offers exactly these sizes: **4×4, 6×6, 8×8, 9×9, 12×12**.
 Selecting a size updates `dimension`: for `size < 8` the dimension is left unchanged
 (whatever it currently is); for `size >= 8` it is forced to `3`. `base` is not changed
 by the size selector at all in the observed code path — carry this exact rule forward
@@ -482,8 +482,8 @@ explicitly to the human reviewer at Phase 18 (Help panel / in-app docs).
 ### 8.2 "16x6" in the video transcript
 
 The narrated video says board sizes go up to "16x6"; the code's actual largest option is
-**16×16** (all board-size options are square — see §4.1). Treat the transcript as an
-oral slip, not a requirement; **16×16** is authoritative.
+**12×12** (all board-size options are square — see §4.1). Treat the transcript as an
+oral slip, not a requirement; **12×12** is authoritative.
 
 ### 8.3 Difficulty levels are unimplemented
 

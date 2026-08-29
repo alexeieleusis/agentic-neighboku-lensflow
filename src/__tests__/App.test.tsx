@@ -924,8 +924,9 @@ describe("App shell §5.9 — New Game drawer (Phase 17)", () => {
 
       // The drawer re-opened fresh: the select re-defaults to 8×8 and re-reads
       // the (now 2) dimension from the new slice. 12×12 (≥ 8): §4.1 forces
-      // the dimension to 3. (This pick drives the `size >= 8` branch end to end
-      // here; the rule itself is covered by the pure domain tests.)
+      // the dimension to 3. (12×12 is now the largest selectable size, so it
+      // drives the `size >= 8` branch end to end here; the rule itself is
+      // covered by the pure domain tests.)
       fireEvent.click(screen.getByRole("button", { name: "New Game" }));
       expect(screen.getByRole("combobox").textContent).toBe("8×8");
       fireEvent.mouseDown(screen.getByRole("combobox"));

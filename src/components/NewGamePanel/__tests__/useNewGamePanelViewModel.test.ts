@@ -40,11 +40,11 @@ function renderViewModel(initial: NewGamePanelState = SLICE) {
 }
 
 describe("useNewGamePanelViewModel (Phase 17 orchestrator)", () => {
-  it("exposes the six §4.1 sizes and §5.9's first-open default of 8×8, not the slice's own size", () => {
+  it("exposes the five §4.1 sizes and §5.9's first-open default of 8×8, not the slice's own size", () => {
     const { result } = renderViewModel();
 
     expect(result.current.sizes).toEqual(BOARD_SIZES);
-    expect(result.current.sizes).toEqual([4, 6, 8, 9, 12, 16]);
+    expect(result.current.sizes).toEqual([4, 6, 8, 9, 12]);
     // The slice holds size 4 — the select still defaults to 8×8 (§5.9).
     expect(result.current.selectedSize).toBe(8);
   });
