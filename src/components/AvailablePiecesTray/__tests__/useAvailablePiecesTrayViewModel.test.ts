@@ -188,7 +188,7 @@ describe("useAvailablePiecesTrayViewModel (Phase 13 orchestrator)", () => {
     });
   });
 
-  it("forwards the slice's §5.4 pieceType into each column's piece-image slice", () => {
+  it("forwards the slice's §5.4 pieceType into each column's piece-image slice", async () => {
     const piece = createPiece([0, 2, 1], 3, 3);
     const tray = new Map<Piece, number>([[piece, 1]]);
     const { result } = renderViewModel(
@@ -197,6 +197,16 @@ describe("useAvailablePiecesTrayViewModel (Phase 13 orchestrator)", () => {
     const column = result.current.columns[0];
 
     expect(column.pieceImage.state).toEqual({
+      piece,
+      size: TRAY_PIECE_IMAGE_PX,
+      pieceType: "Faces",
+    });
+
+    // The magnified telescope is a working slice: its stream must project the
+    // column's piece-image state, re-projecting pieceType from the live slice.
+    await expect(
+      firstValueFrom(column.pieceImage.telescope.stream),
+    ).resolves.toEqual({
       piece,
       size: TRAY_PIECE_IMAGE_PX,
       pieceType: "Faces",
