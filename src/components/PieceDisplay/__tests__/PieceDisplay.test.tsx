@@ -78,12 +78,12 @@ describe("PieceDisplay (Shapes mode) §5.3", () => {
       <div>
         {/* eslint-disable-next-line lensflow/require-smart-constructor-validation */}
         {pieces.map((piece) => {
-          const state: PieceDisplayState = {
+          const state = {
             piece,
             size: 48,
             pieceType: "Shapes",
-          };
-          const telescope = Telescope.of(state);
+          } satisfies PieceDisplayState;
+          const telescope = Telescope.of<PieceDisplayState>(state);
           return (
             <PieceDisplay
               key={piece.join("·")}
