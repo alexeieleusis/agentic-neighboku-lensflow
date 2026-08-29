@@ -16,6 +16,7 @@ import {
 import {
   buildAvailablePiecesTrayState,
   buildBoardDisplayState,
+  buildHelpPanelState,
   buildNewGamePanelState,
   buildSolvabilityIconState,
   closeInvalidMoveSnackbar,
@@ -566,21 +567,40 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
     expect(slice.showFitPiecesOnHover).toBe(true);
   });
 
-  it("buildAvailablePiecesTrayState carries the whole game plus the tray-scoped hint flags", () => {
+  it("buildAvailablePiecesTrayState carries the whole game, the tray-scoped hint flags, and the §5.4 pieceType", () => {
     // Phase 13: the tray renders `game`'s tray/fit-cache fields and commits its
     // click-to-place through `placePiece` (which needs the whole game), so the slice
     // carries the entire `Game` — not a picked few fields — plus the two §4.2 flags
-    // the columns gate their `*` / button list on.
+    // the columns gate their `*` / button list on. Phase 19 (§5.4): the slice also
+    // carries the shell's §4.2 `pieceType`, which the columns' piece-image slices
+    // forward into the shared `PieceDisplay`.
     const game = buildGame();
     expect(
-      buildAvailablePiecesTrayState(game, {
-        availablePieceUniqueCell: true,
-        pieceCells: false,
-      }),
+      buildAvailablePiecesTrayState(
+        game,
+        {
+          availablePieceUniqueCell: true,
+          pieceCells: false,
+        },
+        "Faces",
+      ),
     ).toEqual({
       game,
       availablePieceUniqueCell: true,
       pieceCells: false,
+      pieceType: "Faces",
+    });
+  });
+
+  it("buildHelpPanelState carries the candidate-space scalars plus the §5.4 pieceType", () => {
+    // Phase 18: the panel's slice is the current candidate space's `base`/`dimension`
+    // (read-only; the piece selection is panel-local). Phase 19 (§5.4): it also
+    // carries the shell's §4.2 `pieceType`, which the panel's piece entries forward
+    // into their shared `PieceDisplay` slices.
+    expect(buildHelpPanelState({ base: 3, dimension: 3 }, "Faces")).toEqual({
+      base: 3,
+      dimension: 3,
+      pieceType: "Faces",
     });
   });
 });

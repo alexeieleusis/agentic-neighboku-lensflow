@@ -53,6 +53,21 @@ export const Default: StoryObj<typeof meta> = {
     game: buildGame(6, 6),
     availablePieceUniqueCell: false,
     pieceCells: false,
+    pieceType: "Shapes",
+  },
+};
+
+/**
+ * §5.4 (Phase 19): the same mid-game tray in Faces mode — every column's
+ * piece image is the shared `PieceDisplay`'s face branch (`/faces/h{h}e{e}m{m}.png`
+ * for the column's piece digits), not a separate tray-level Faces renderer.
+ */
+export const FacesMode: StoryObj<typeof meta> = {
+  args: {
+    game: buildGame(6, 6),
+    availablePieceUniqueCell: false,
+    pieceCells: false,
+    pieceType: "Faces",
   },
 };
 
@@ -67,6 +82,7 @@ export const UniqueCellHint: StoryObj<typeof meta> = {
     game: buildGame(4, 4),
     availablePieceUniqueCell: true,
     pieceCells: false,
+    pieceType: "Shapes",
   },
 };
 
@@ -82,6 +98,7 @@ export const ClickToPlace: StoryObj<typeof meta> = {
     game: buildGame(6, 6),
     availablePieceUniqueCell: false,
     pieceCells: true,
+    pieceType: "Shapes",
   },
 };
 
@@ -91,6 +108,7 @@ export const BothHintsOn: StoryObj<typeof meta> = {
     game: buildGame(4, 4),
     availablePieceUniqueCell: true,
     pieceCells: true,
+    pieceType: "Shapes",
   },
 };
 
@@ -111,5 +129,6 @@ export const EmptyTray: StoryObj<typeof meta> = {
     game: EMPTY_TRAY_GAME,
     availablePieceUniqueCell: true,
     pieceCells: true,
+    pieceType: "Shapes",
   },
 };

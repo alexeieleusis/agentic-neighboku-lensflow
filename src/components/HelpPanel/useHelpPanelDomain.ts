@@ -137,8 +137,8 @@ export function invalidNeighborSetFor(
 /**
  * A piece's human-readable digit label — the selector's option text and the
  * closed selector's displayed value: its attribute digits, space-separated
- * (the board placeholder's `pieceLabelFor` convention). Unique within one
- * candidate space: two distinct pool pieces always differ in at least one
+ * (the same convention the board cells' accessible names use). Unique within
+ * one candidate space: two distinct pool pieces always differ in at least one
  * digit, so no two pieces of one `base^dimension` space share a label.
  */
 export function pieceLabel(piece: Piece): string {

@@ -167,11 +167,13 @@ export interface AppViewModel {
   readonly preferences: TelescopedProps<AppPreferences>;
   /**
    * §5.10 / Phase 18: the App → `HelpPanel` magnification (§7.2) onto the current
-   * candidate space's `{ base, dimension }` — read-only from the panel's point of
-   * view (`HELP_PANEL_LENS`'s setter is the identity): the panel's one user
-   * interaction, the piece selection, is panel-local UI state (the
-   * `useHelpPanelState` tier), never a write back through the slice, so the slice
-   * simply mirrors `preferences.scalars` as the shell state changes.
+   * candidate space's `{ base, dimension }` plus — since Phase 19 (§5.4) — the
+   * §4.2 `pieceType` the panel's piece displays render in — read-only from the
+   * panel's point of view (`HELP_PANEL_LENS`'s setter is the identity): the
+   * panel's one user interaction, the piece selection, is panel-local UI state
+   * (the `useHelpPanelState` tier), never a write back through the slice, so the
+   * slice simply mirrors `preferences.scalars`/`pieceType` as the shell state
+   * changes.
    */
   readonly help: TelescopedProps<HelpPanelState>;
   /**

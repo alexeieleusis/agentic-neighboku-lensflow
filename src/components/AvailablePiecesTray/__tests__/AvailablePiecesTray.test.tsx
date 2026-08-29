@@ -61,8 +61,9 @@ function trayState(
   game: Game,
   availablePieceUniqueCell = false,
   pieceCells = false,
+  pieceType: "Shapes" | "Faces" = "Shapes",
 ): AvailablePiecesTrayState {
-  return { game, availablePieceUniqueCell, pieceCells };
+  return { game, availablePieceUniqueCell, pieceCells, pieceType };
 }
 
 function renderTray(state: AvailablePiecesTrayState) {
@@ -90,17 +91,27 @@ function clickPlaceButtons(container: ParentNode): readonly HTMLElement[] {
  * column. Expected order: [0,0,0] (0), [0,2,0] (20), [1,0,0] (100), [1,1,1] (111).
  * Both hints are off, so no column may show a `*` or a button.
  */
-const MID_GAME_STATE: AvailablePiecesTrayState = trayState(
-  gameOf(
-    6,
-    trayOf([
-      [[1, 1, 1], 4],
-      [[1, 0, 0], 2],
-      [[0, 2, 0], 1],
-      [[0, 0, 0], 3],
-      [[2, 0, 0], 0],
-    ]),
-  ),
+const MID_GAME: Game = gameOf(
+  6,
+  trayOf([
+    [[1, 1, 1], 4],
+    [[1, 0, 0], 2],
+    [[0, 2, 0], 1],
+    [[0, 0, 0], 3],
+    [[2, 0, 0], 0],
+  ]),
+);
+
+const MID_GAME_STATE: AvailablePiecesTrayState = trayState(MID_GAME);
+
+/** The same mid-game tray in the §5.4 Faces skin (`pieceType: "Faces"`): the
+ * Faces twin of `MID_GAME_STATE`, pinning the tray-column → piece-image-slice →
+ * `<img>` integration that the Shapes assertions pin in the other skin. */
+const MID_GAME_FACES_STATE: AvailablePiecesTrayState = trayState(
+  MID_GAME,
+  false,
+  false,
+  "Faces",
 );
 
 const EXPECTED_TITLES = [
@@ -138,6 +149,36 @@ describe("AvailablePiecesTray (§5.5)", () => {
     expect(container.querySelectorAll("circle").length).toBe(2);
     expect(container.querySelectorAll("polygon").length).toBe(2);
     expect(container.querySelectorAll("rect").length).toBe(0);
+  });
+
+  it("renders each column's piece as its §5.4 face image when the slice's skin is Faces (one img per column, no svg)", () => {
+    const { container } = renderTray(MID_GAME_FACES_STATE);
+
+    // The §5.4 skin switch reaches the tray through each column's piece-image slice:
+    // no §5.3 SVG remains, and exactly one <img> stands in per column.
+    expect(container.querySelectorAll("svg")).toHaveLength(0);
+    const imgs = Array.from(
+      container.querySelectorAll<HTMLImageElement>("img"),
+    );
+    expect(imgs).toHaveLength(4);
+
+    // DOM order is the same ascending order the Shapes test pins via the column
+    // titles — [0,0,0], [0,2,0], [1,0,0], [1,1,1] — one §5.4 file name per value.
+    expect(imgs.map((img) => img.getAttribute("src"))).toEqual([
+      "/faces/h0e0m0.png", // [0,0,0]
+      "/faces/h0e2m0.png", // [0,2,0]
+      "/faces/h1e0m0.png", // [1,0,0]
+      "/faces/h1e1m1.png", // [1,1,1]
+    ]);
+
+    // Each face image carries its accessible name (the faceLabelFor alt), in the
+    // same attribute order the Shapes <title> carries.
+    expect(imgs.map((img) => img.getAttribute("alt"))).toEqual([
+      "face, hair 0, eyes 0, mouth 0",
+      "face, hair 0, eyes 2, mouth 0",
+      "face, hair 1, eyes 0, mouth 0",
+      "face, hair 1, eyes 1, mouth 1",
+    ]);
   });
 
   it("tray row has width 100% (columns wrap via flexWrap; overflow behavior covered by stories)", () => {

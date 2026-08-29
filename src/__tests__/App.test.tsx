@@ -971,8 +971,10 @@ describe("App shell §5.10 — help drawer (Phase 18)", () => {
     expect(screen.getByText("Valid neighbors")).toBeTruthy();
     expect(screen.getByText("Invalid neighbors")).toBeTruthy();
     // §5.10 items 4–6: the two separately-labeled tutorial-video links and
-    // the Freepik credit — the credit present in this Shapes-only state,
-    // unconditionally (the panel never reads `pieceType`).
+    // the Freepik credit — the credit present in this Shapes-mode state,
+    // unconditionally: §5.10 item 6 renders it regardless of `pieceType`
+    // (the panel's piece displays are Faces-capable since Phase 19, but the
+    // credit is a static attribution, not a skin-gated control).
     expect(
       screen.getByRole("link", { name: "Tutorial in English" }),
     ).toBeTruthy();

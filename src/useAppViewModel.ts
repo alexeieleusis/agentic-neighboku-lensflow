@@ -78,10 +78,14 @@ export function useAppViewModel(
   // 13's commit (see the lens below).
   const tray = useMemo<TelescopedProps<AvailablePiecesTrayState>>(
     () => ({
-      state: buildAvailablePiecesTrayState(game, preferences.hints),
+      state: buildAvailablePiecesTrayState(
+        game,
+        preferences.hints,
+        preferences.pieceType,
+      ),
       telescope: props.telescope.magnify(AVAILABLE_PIECES_TRAY_LENS),
     }),
-    [game, preferences.hints, props.telescope],
+    [game, preferences.hints, preferences.pieceType, props.telescope],
   );
 
   // App → DragFitHintIcon (§7.2, Phase 14): the dedicated magnification onto the
@@ -153,19 +157,22 @@ export function useAppViewModel(
 
   // App → HelpPanel (§7.2, Phase 18): the magnification onto the current
   // candidate space's `{ base, dimension }` — the two §4.2 scalars the help
-  // panel's piece selector and neighbor-set derivations are built on.
-  // Read-only from the panel's point of view (`HELP_PANEL_LENS`'s setter is
-  // the identity): the panel's one user interaction, the piece selection, is
-  // panel-local UI state (the `useHelpPanelState` tier), never a write back
-  // through this slice — so the slice simply mirrors `preferences.scalars`,
-  // re-deriving on the same emission as a §4.1 New Game rebuild's scalars
-  // update (Phase 17) or any preferences change.
+  // panel's piece selector and neighbor-set derivations are built on — plus,
+  // since Phase 19 (§5.4), the §4.2 `pieceType` the panel's piece displays
+  // render in (the piece-image slices forward it into the shared
+  // `PieceDisplay`). Read-only from the panel's point of view
+  // (`HELP_PANEL_LENS`'s setter is the identity): the panel's one user
+  // interaction, the piece selection, is panel-local UI state (the
+  // `useHelpPanelState` tier), never a write back through this slice — so the
+  // slice simply mirrors `preferences.scalars`/`pieceType`, re-deriving on the
+  // same emission as a §4.1 New Game rebuild's scalars update (Phase 17), a
+  // §4.2 skin toggle, or any other preferences change.
   const helpSlice = useMemo<TelescopedProps<HelpPanelState>>(
     () => ({
-      state: buildHelpPanelState(preferences.scalars),
+      state: buildHelpPanelState(preferences.scalars, preferences.pieceType),
       telescope: props.telescope.magnify(HELP_PANEL_LENS),
     }),
-    [preferences.scalars, props.telescope],
+    [preferences.scalars, preferences.pieceType, props.telescope],
   );
 
   // §5.13 (Phase 15): the finished-game Dialog. `dialogOpen` is the derivation the
@@ -231,7 +238,12 @@ const BOARD_DISPLAY_LENS = new Lens<AppState, BoardDisplayState>(
  * write through this slice is that commit — nothing else writes through it.
  */
 const AVAILABLE_PIECES_TRAY_LENS = new Lens<AppState, AvailablePiecesTrayState>(
-  (state) => buildAvailablePiecesTrayState(state.game, state.preferences.hints),
+  (state) =>
+    buildAvailablePiecesTrayState(
+      state.game,
+      state.preferences.hints,
+      state.preferences.pieceType,
+    ),
   (trayState, state) => ({ ...state, game: trayState.game }),
 );
 
@@ -318,14 +330,16 @@ const NEW_GAME_PANEL_LENS = new Lens<AppState, NewGamePanelState>(
 
 /**
  * The App → `HelpPanel` magnification (§5.10/§7.2, Phase 18): the current
- * candidate space's `{ base, dimension }` scalars as their own lens. Unlike
- * the read-only board/tray/solvability neighbours it is also unlike
- * `PREFERENCES_LENS`: the panel's one user interaction — the piece selector's
- * choice — is panel-LOCAL UI state (the `useHelpPanelState` tier), never a
- * write back through this slice, so the setter is the identity: no write
- * through the help slice can change any `AppState` field.
+ * candidate space's `{ base, dimension }` scalars plus the §4.2 `pieceType`
+ * (Phase 19, §5.4) as their own lens. Unlike the read-only board/tray/
+ * solvability neighbours it is also unlike `PREFERENCES_LENS`: the panel's
+ * one user interaction — the piece selector's choice — is panel-LOCAL UI
+ * state (the `useHelpPanelState` tier), never a write back through this
+ * slice, so the setter is the identity: no write through the help slice can
+ * change any `AppState` field.
  */
 const HELP_PANEL_LENS = new Lens<AppState, HelpPanelState>(
-  (state) => buildHelpPanelState(state.preferences.scalars),
+  (state) =>
+    buildHelpPanelState(state.preferences.scalars, state.preferences.pieceType),
   (_helpState, state) => state,
 );

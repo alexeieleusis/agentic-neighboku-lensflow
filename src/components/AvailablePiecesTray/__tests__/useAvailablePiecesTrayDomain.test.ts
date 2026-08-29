@@ -169,8 +169,9 @@ function trayState(
   game: Game,
   availablePieceUniqueCell = false,
   pieceCells = false,
+  pieceType: "Shapes" | "Faces" = "Shapes",
 ): AvailablePiecesTrayState {
-  return { game, availablePieceUniqueCell, pieceCells };
+  return { game, availablePieceUniqueCell, pieceCells, pieceType };
 }
 
 /** A guaranteed-legal (piece, blank cell) pair, read off the fit cache. */

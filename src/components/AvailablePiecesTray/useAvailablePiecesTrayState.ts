@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Lens } from "telescopejs";
 import type { TelescopedProps } from "../../base/TelescopeComponent";
 import type { Piece } from "../../game/entities";
+import type { PieceType } from "../CellDisplay/CellDisplay.types";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types";
 import type {
   AvailablePiecesTrayColumn,
@@ -37,7 +38,7 @@ export function useAvailablePiecesTrayState(
         forcedPlacement: isForcedPlacement(props.state, piece),
         placements: piecePlacementCells(props.state, piece),
         pieceImage: {
-          state: pieceImageState(piece),
+          state: pieceImageState(piece, props.state.pieceType),
           telescope: props.telescope.magnify(pieceImageLens(piece)),
         },
       })),
@@ -49,24 +50,29 @@ export function useAvailablePiecesTrayState(
   return { columns };
 }
 
-/** `AvailablePiecesTrayState` → the piece-image slice one tray column renders. */
-function pieceImageState(piece: Piece): PieceDisplayState {
-  return { piece, size: TRAY_PIECE_IMAGE_PX };
+/** `AvailablePiecesTrayState` fields → the piece-image slice one tray column renders. */
+function pieceImageState(
+  piece: Piece,
+  pieceType: PieceType,
+): PieceDisplayState {
+  return { piece, size: TRAY_PIECE_IMAGE_PX, pieceType };
 }
 
 /**
  * The magnification focusing the tray telescope down to the piece image of one
  * distinct piece value. Same deliberate asymmetry as the shell's board/tray
  * lenses: the piece value is an immutable domain value and the render size is a
- * tray-level layout constant, so no field of this slice can ever change — writes
- * through it return the parent slice unchanged (identity no-op) and the magnified
- * stream simply mirrors.
+ * tray-level layout constant, so the only field of this slice that can move is
+ * `pieceType` — and it moves only as the shell's §4.2 preference does (Phase 19,
+ * §5.4), re-projected by this getter from the tray slice. Writes through it return
+ * the parent slice unchanged (identity no-op) and the magnified stream simply
+ * mirrors.
  */
 function pieceImageLens(
   piece: Piece,
 ): Lens<AvailablePiecesTrayState, PieceDisplayState> {
   return new Lens(
-    () => pieceImageState(piece),
+    (tray) => pieceImageState(piece, tray.pieceType),
     (_pieceImage, state) => state,
   );
 }

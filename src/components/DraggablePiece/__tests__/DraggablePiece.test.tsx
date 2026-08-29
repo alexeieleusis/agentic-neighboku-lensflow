@@ -18,10 +18,12 @@ afterEach(() => {
 function pieceState(
   digits: readonly number[],
   size = 48,
+  pieceType: "Shapes" | "Faces" = "Shapes",
 ): TelescopedProps<PieceDisplayState> {
   const state: PieceDisplayState = {
     piece: createPiece(digits, 3, 3),
     size,
+    pieceType,
   };
   return { state, telescope: Telescope.of(state) };
 }
@@ -57,12 +59,14 @@ describe("useDraggablePieceViewModel", () => {
     expect(result.current.pieceImage.state).toEqual({
       piece: props.state.piece,
       size: 48,
+      pieceType: "Shapes",
     });
     await expect(
       firstValueFrom(result.current.pieceImage.telescope.stream),
     ).resolves.toEqual({
       piece: props.state.piece,
       size: 48,
+      pieceType: "Shapes",
     });
   });
 

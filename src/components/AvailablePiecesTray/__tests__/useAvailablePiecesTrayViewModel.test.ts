@@ -60,8 +60,9 @@ function trayState(
   game: Game,
   availablePieceUniqueCell = false,
   pieceCells = false,
+  pieceType: "Shapes" | "Faces" = "Shapes",
 ): AvailablePiecesTrayState {
-  return { game, availablePieceUniqueCell, pieceCells };
+  return { game, availablePieceUniqueCell, pieceCells, pieceType };
 }
 
 /** Render `useAvailablePiecesTrayViewModel` against a standalone tray telescope. */
@@ -173,13 +174,43 @@ describe("useAvailablePiecesTrayViewModel (Phase 13 orchestrator)", () => {
     expect(column.pieceImage.state).toEqual({
       piece,
       size: TRAY_PIECE_IMAGE_PX,
+      pieceType: "Shapes",
     });
 
     // The magnified telescope is a working slice: its stream emits the column's
     // piece-image state.
     await expect(
       firstValueFrom(column.pieceImage.telescope.stream),
-    ).resolves.toEqual({ piece, size: TRAY_PIECE_IMAGE_PX });
+    ).resolves.toEqual({
+      piece,
+      size: TRAY_PIECE_IMAGE_PX,
+      pieceType: "Shapes",
+    });
+  });
+
+  it("forwards the slice's §5.4 pieceType into each column's piece-image slice", async () => {
+    const piece = createPiece([0, 2, 1], 3, 3);
+    const tray = new Map<Piece, number>([[piece, 1]]);
+    const { result } = renderViewModel(
+      trayState(readGame(4, tray), false, false, "Faces"),
+    );
+    const column = result.current.columns[0];
+
+    expect(column.pieceImage.state).toEqual({
+      piece,
+      size: TRAY_PIECE_IMAGE_PX,
+      pieceType: "Faces",
+    });
+
+    // The magnified telescope is a working slice: its stream must project the
+    // column's piece-image state, re-projecting pieceType from the live slice.
+    await expect(
+      firstValueFrom(column.pieceImage.telescope.stream),
+    ).resolves.toEqual({
+      piece,
+      size: TRAY_PIECE_IMAGE_PX,
+      pieceType: "Faces",
+    });
   });
 
   it("tracks the tray state as the underlying game state changes", () => {

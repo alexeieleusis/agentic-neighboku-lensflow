@@ -20,8 +20,9 @@ afterEach(() => {
 function renderHelpPanel({
   base = 3,
   dimension = 3,
+  pieceType = "Shapes",
 }: Partial<HelpPanelState> = {}) {
-  const state: HelpPanelState = { base, dimension };
+  const state: HelpPanelState = { base, dimension, pieceType };
   return render(
     <ThemeProvider theme={darkTheme}>
       <HelpPanel state={state} telescope={Telescope.of(state)} />
@@ -46,16 +47,27 @@ function groupRoot(title: string): HTMLElement {
 }
 
 /**
- * The piece images a group renders: each shared `PieceDisplay` is an
- * accessible image whose SVG carries a `<title>` child (its aria label). The
- * group's own heading icon is an SVG too, but a MUI icon without a `<title>`,
- * so the tag filters it out.
+ * The piece images a group renders in Shapes mode: each shared `PieceDisplay`
+ * is an accessible image whose SVG carries a `<title>` child (its aria label).
+ * The group's own heading icon is an SVG too, but a MUI icon without a
+ * `<title>`, so the tag filters it out.
  */
 function groupPieceImages(title: string): SVGElement[] {
   return Array.from(groupRoot(title).querySelectorAll("svg")).filter((svg) => {
     const first = svg.firstElementChild;
     return first !== null && first.tagName === "title";
   });
+}
+
+/**
+ * The piece images a group renders in Faces mode: each shared `PieceDisplay`
+ * is an `<img>` whose `src` is the §5.4 face file name and whose `alt` carries
+ * the face's accessible name.
+ */
+function groupFaceImages(title: string): HTMLImageElement[] {
+  return Array.from(
+    groupRoot(title).querySelectorAll("img"),
+  ) as HTMLImageElement[];
 }
 
 /**
@@ -96,8 +108,8 @@ describe("HelpPanel (§5.10 — the six sections in order)", () => {
 
     // §5.10 items 4/5/6: the two tutorial-video links (separately labeled, real
     // non-placeholder targets) and the Freepik credit — the credit is present in
-    // this Shapes-only panel state, unconditionally (the panel never reads
-    // `pieceType`).
+    // this Shapes-mode panel state, unconditionally: §5.10 item 6 renders it
+    // regardless of `pieceType` (the Faces-mode test below pins the same).
     const english = screen.getByRole("link", { name: "Tutorial in English" });
     expect(english.getAttribute("href")).toBe(ENGLISH_TUTORIAL_VIDEO_URL);
     expect(english.getAttribute("target")).toBe("_blank");
@@ -155,5 +167,56 @@ describe("HelpPanel (§5.10 — the six sections in order)", () => {
     // [2,1] — 4 valid, and 9 − 4 = 5 invalid (the selected piece included).
     expect(groupPieceImages("Valid neighbors")).toHaveLength(4);
     expect(groupPieceImages("Invalid neighbors")).toHaveLength(5);
+  });
+});
+
+describe("HelpPanel (§5.4 Faces mode)", () => {
+  it("renders the selector options and both neighbor groups as face images when pieceType is Faces", () => {
+    renderHelpPanel({ pieceType: "Faces" });
+
+    // The closed selector's options each carry a face image (§5.4: the shared
+    // PieceDisplay's Faces branch — no separate Faces path in the panel).
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(28); // no-selection option + 27 pieces
+    for (const option of options.slice(1)) {
+      const img = option.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toMatch(
+        /^\/faces\/h[0-2]e[0-2]m[0-2]\.png$/,
+      );
+    }
+    fireEvent.click(optionWithValue("0 1 1"));
+
+    // The two neighbor groups render faces, not shapes…
+    const validFaces = groupFaceImages("Valid neighbors");
+    const invalidFaces = groupFaceImages("Invalid neighbors");
+    expect(validFaces).toHaveLength(12);
+    expect(invalidFaces).toHaveLength(15);
+    expect(groupPieceImages("Valid neighbors")).toHaveLength(0);
+    expect(groupPieceImages("Invalid neighbors")).toHaveLength(0);
+    // …with the §5.4 file names for each group member's own piece digits.
+    const validSrcs = new Set(validFaces.map((img) => img.getAttribute("src")));
+    const invalidSrcs = new Set(
+      invalidFaces.map((img) => img.getAttribute("src")),
+    );
+    expect(validSrcs.size).toBe(12);
+    expect(invalidSrcs.size).toBe(15);
+    for (const src of [...validSrcs, ...invalidSrcs]) {
+      expect(src).toMatch(/^\/faces\/h[0-2]e[0-2]m[0-2]\.png$/);
+    }
+    // The selected piece's face ([0,1,1]) is on the invalid side (a piece is
+    // never its own valid neighbor), under its exact §5.4 name.
+    expect(invalidSrcs.has("/faces/h0e1m1.png")).toBe(true);
+    expect(validSrcs.has("/faces/h0e1m1.png")).toBe(false);
+  });
+
+  it("still shows the Freepik attribution link in Faces mode (the credit is unconditional, §5.10 item 6)", () => {
+    renderHelpPanel({ pieceType: "Faces" });
+
+    const freepik = screen.getByRole("link", {
+      name: "Images under license by Freep!k",
+    });
+    expect(freepik.getAttribute("href")).toBe(FREPIK_ATTRIBUTION_URL);
   });
 });

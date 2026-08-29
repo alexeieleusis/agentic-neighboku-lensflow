@@ -1,19 +1,26 @@
 import type { Piece } from "../../game/entities";
+import type { PieceType } from "../CellDisplay/CellDisplay.types.ts";
 import type { PieceDisplayState } from "../PieceDisplay/PieceDisplay.types.ts";
 import type { TelescopedProps } from "../../base/TelescopeComponent.ts";
 
 /**
  * §5.10 (Phase 18) — the state slice this component reads: the current candidate
  * space's `base`/`dimension` (a read-only projection of the shell's §4.2
- * `preferences.scalars`). The panel is a pure view over those two scalars — the
+ * `preferences.scalars`), plus — since Phase 19 (§5.4) — the shell's §4.2
+ * `pieceType` skin preference. The panel is a pure view over those scalars — the
  * selected piece is component-local UI state (the `useHelpPanelState` tier), never
  * part of this slice, so nothing is ever written through the slice's telescope:
  * `HELP_PANEL_LENS`'s setter (`useAppViewModel.ts`) is the identity no-op, exactly
- * like the board/tray/solvability slices.
+ * like the board/tray/solvability slices. `pieceType` rides the slice so the
+ * panel's piece entries can forward it into their shared `PieceDisplay` slices:
+ * the §5.4 mode switch then reaches this panel's selector and neighbor-set
+ * displays the same way it reaches the board's and the tray's.
  */
 export interface HelpPanelState {
   readonly base: number;
   readonly dimension: number;
+  /** §4.2/§5.4 (Phase 19): the skin the panel's piece displays render in. */
+  readonly pieceType: PieceType;
 }
 
 /**

@@ -47,6 +47,15 @@ export function cellFromDroppableId(id: string): Cell | null {
 export const FIT_PIECE_IMAGE_PX = 32;
 
 /**
+ * Pixel edge the shared Phase 6 `PieceDisplay` renders the placed piece at inside a
+ * filled board cell. A rebuild layout choice, at the same scale as this cell's own
+ * §5.2 fit-piece thumbnails: the largest supported board (12×12) leaves ~47px of
+ * interior per cell at the shell's bounded width, so a fixed edge must stay well
+ * under that to fit every board size.
+ */
+export const CELL_PIECE_IMAGE_PX = 32;
+
+/**
  * §5.2: the tray pieces that would legally occupy `(row, col)`, read from the Phase 3
  * `cellToFitPieces` cache at the cell's linear index. The cache is keyed over blank
  * cells only (§3.5 step 5), so a filled cell — and any entry-less index — yields the
@@ -107,14 +116,6 @@ export function fitPiecesTooltipIsOn(
 /** §5.2: the 0-indexed board line → the 1-indexed CSS grid line the cell positions on. */
 export function cssGridLine(index: number): number {
   return index + 1;
-}
-
-/**
- * The minimal inline digit placeholder a filled cell shows until a later phase swaps in
- * the shared piece renderer; `null` for a blank cell.
- */
-export function pieceLabelFor(piece: Piece | null): string | null {
-  return piece === null ? null : piece.map(String).join(" ");
 }
 
 /**

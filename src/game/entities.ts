@@ -1,5 +1,19 @@
 export type Piece = ReadonlyArray<number>;
 
+/**
+ * The two visual skins for the shared attribute space (requirements §1, §5.4). A
+ * shell-wide §4.2 preference, not a concern of any single display component, so it
+ * lives in the shared game-domain layer (this module) rather than in a component's
+ * types file: both display components that render pieces (`CellDisplay`,
+ * `PieceDisplay`) import it from here bottom-up, which keeps the component type
+ * graph acyclic. `PIECE_TYPES` is the runtime constant of the accepted skin values
+ * and `PieceType` is the explicit string-literal union mirroring it; adding a skin
+ * now requires editing both declarations, so a lint rule or test asserting that
+ * `PIECE_TYPES` members match `PieceType` can keep them from drifting apart.
+ */
+export const PIECE_TYPES = ["Shapes", "Faces"] as const;
+export type PieceType = "Shapes" | "Faces";
+
 export function createPiece(
   values: readonly number[],
   dimension: number,

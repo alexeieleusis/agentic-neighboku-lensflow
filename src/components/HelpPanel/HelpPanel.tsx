@@ -32,12 +32,16 @@ import {
  * `RenderHelpDrawer`). Fractal component: `state,telescope →
  * useHelpPanelViewModel → RenderHelpPanel` (requirements §7.2).
  *
- * The `state` here is the shell's `{ base, dimension }` candidate-space slice,
- * handed over as a magnified telescope (App → `HelpPanel`, §7.2). The slice
- * is read-only from the panel's point of view (`HELP_PANEL_LENS`'s setter is
- * the identity): every piece it renders reads its own value off a dedicated
- * magnified piece-image slice, and the one user interaction — the piece
- * selector's choice — commits to the panel's LOCAL selection state tier,
+ * The `state` here is the shell's `{ base, dimension, pieceType }` slice —
+ * the candidate space the panel's piece sets are built on, plus the §4.2 skin
+ * preference its piece displays render in (Phase 19, §5.4: each piece entry's
+ * magnified `PieceDisplay` slice forwards this `pieceType`, so the Preferences
+ * panel's Shapes/Faces toggle reaches this panel's selector and neighbor-set
+ * displays) — handed over as a magnified telescope (App → `HelpPanel`, §7.2).
+ * The slice is read-only from the panel's point of view (`HELP_PANEL_LENS`'s
+ * setter is the identity): every piece it renders reads its own value off a
+ * dedicated magnified piece-image slice, and the one user interaction — the
+ * piece selector's choice — commits to the panel's LOCAL selection state tier,
  * never through the slice's telescope.
  *
  * The panel is the feature the tutorial video describes as "select any piece…
