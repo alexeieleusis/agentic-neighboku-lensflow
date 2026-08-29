@@ -23,7 +23,7 @@ import { mergeStoredPreferences, type JsonValue } from "./useAppDomain.ts";
  */
 const defaultPreferences = {
   scalars: { base: 3, dimension: 3, size: 6 },
-  pieceType: "Shapes",
+  pieceType: "Faces",
   hints: {
     fitPieceCount: true,
     pieceCells: false,

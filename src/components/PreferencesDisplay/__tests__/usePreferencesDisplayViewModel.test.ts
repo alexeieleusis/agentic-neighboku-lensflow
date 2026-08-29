@@ -9,7 +9,7 @@ import { PIECE_TYPE_OPTIONS } from "../usePreferencesDisplayDomain";
 /** §4.2 defaults — the fixture every row value is checked against. */
 const DEFAULTS = {
   scalars: { base: 3, dimension: 3, size: 6 },
-  pieceType: "Shapes",
+  pieceType: "Faces",
   hints: {
     fitPieceCount: true,
     pieceCells: false,
@@ -55,7 +55,7 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
     expect(first.kind).toBe("segmented");
     if (first.kind !== "segmented") throw new Error("fixture: row 1 drifted");
     expect(first.label).toBe("Piece Type: Shapes or Faces");
-    expect(first.value).toBe("Shapes");
+    expect(first.value).toBe("Faces");
     expect(first.options).toEqual(PIECE_TYPE_OPTIONS);
 
     // Rows 2–9: the 8 switches, §5.8 order, §5.8 labels, §4.2 default values.
@@ -85,20 +85,23 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
   });
 
   it("tracks the slice as the shell's preferences change (re-render on the emission)", () => {
-    const faces = { ...DEFAULTS, pieceType: "Faces" } satisfies AppPreferences;
+    const shapes = {
+      ...DEFAULTS,
+      pieceType: "Shapes",
+    } satisfies AppPreferences;
     const { result, rerender } = renderViewModel();
     expect(
       result.current.rows[0].kind === "segmented"
         ? result.current.rows[0].value
         : null,
-    ).toBe("Shapes");
+    ).toBe("Faces");
 
-    rerender(faces);
+    rerender(shapes);
     expect(
       result.current.rows[0].kind === "segmented"
         ? result.current.rows[0].value
         : null,
-    ).toBe("Faces");
+    ).toBe("Shapes");
   });
 
   it("commits a boolean row through the slice telescope: one emission, exactly one field moved", () => {
@@ -127,17 +130,17 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
     subscription.unsubscribe();
   });
 
-  it("commits the pieceType row through the slice telescope: 'Faces' lands, 'Shapes' follows", () => {
+  it("commits the pieceType row through the slice telescope: 'Shapes' lands, 'Faces' follows", () => {
     const { result, rerender, emissions, subscription } = renderViewModel();
 
     act(() => {
       const pieceType = result.current.rows[0];
       if (pieceType.kind !== "segmented")
         throw new Error("fixture: row 1 drifted");
-      pieceType.onChange("Faces");
+      pieceType.onChange("Shapes");
     });
     expect(emissions).toHaveLength(2);
-    expect(emissions[1].pieceType).toBe("Faces");
+    expect(emissions[1].pieceType).toBe("Shapes");
     expect(emissions[1].hints).toBe(DEFAULTS.hints);
 
     rerender(emissions[1]);
@@ -145,10 +148,10 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
       const pieceType = result.current.rows[0];
       if (pieceType.kind !== "segmented")
         throw new Error("fixture: row 1 drifted");
-      pieceType.onChange("Shapes");
+      pieceType.onChange("Faces");
     });
     expect(emissions).toHaveLength(3);
-    expect(emissions[2].pieceType).toBe("Shapes");
+    expect(emissions[2].pieceType).toBe("Faces");
     subscription.unsubscribe();
   });
 
@@ -160,11 +163,11 @@ describe("usePreferencesDisplayViewModel (Phase 16 orchestrator)", () => {
       const sound = result.current.rows[8];
       if (sound.kind !== "switch") throw new Error("fixture: row 9 drifted");
       sound.onChange(true);
-      // `pieceType` is already `Shapes` in the defaults.
+      // `pieceType` is already `Faces` in the defaults.
       const pieceType = result.current.rows[0];
       if (pieceType.kind !== "segmented")
         throw new Error("fixture: row 1 drifted");
-      pieceType.onChange("Shapes");
+      pieceType.onChange("Faces");
     });
 
     // Only the replayed initial state — both commits no-opped.
