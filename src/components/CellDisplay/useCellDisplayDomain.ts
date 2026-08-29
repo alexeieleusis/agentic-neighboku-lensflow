@@ -47,13 +47,23 @@ export function cellFromDroppableId(id: string): Cell | null {
 export const FIT_PIECE_IMAGE_PX = 32;
 
 /**
- * Pixel edge the shared Phase 6 `PieceDisplay` renders the placed piece at inside a
- * filled board cell. A rebuild layout choice, at the same scale as this cell's own
- * §5.2 fit-piece thumbnails: the largest supported board (12×12) leaves ~47px of
- * interior per cell at the shell's bounded width, so a fixed edge must stay well
- * under that to fit every board size.
+ * The pixel edge the filled cell's piece-image slice declares. The cell does not
+ * render the piece at this fixed edge: `CellDisplay` stretches the piece to fill the
+ * cell's interior (see `CELL_PIECE_INSET_PX`), so this edge only acts as the rendered
+ * element's intrinsic/fallback size should the CSS fill ever fail to resolve.
  */
 export const CELL_PIECE_IMAGE_PX = 32;
+
+/**
+ * Total pixel inset the filled cell's piece keeps inside the cell: the piece box is
+ * `calc(100% - CELL_PIECE_INSET_PX px)` of the cell's content box, leaving
+ * `CELL_PIECE_INSET_PX / 2` px of padding per side on top of the cell's own 1px
+ * border. A fixed pixel edge (rather than this relative fill) would make the piece
+ * a sliver on small boards and a lost-in-space thumbnail on large ones, because the
+ * cell edge is a function of board size and viewport (a 3×3 cell is roughly six
+ * times a 12×12 cell at the shell's bounded width).
+ */
+export const CELL_PIECE_INSET_PX = 4;
 
 /**
  * §5.2: the tray pieces that would legally occupy `(row, col)`, read from the Phase 3
@@ -124,8 +134,8 @@ export function cssGridLine(index: number): number {
  * `sectionSize × sectionSize` sub-grids, so `(row, col)` sits in the sub-grid
  * `floor(row/sSize), floor(col/sSize)`. The hue spreads the board's sections around
  * the color wheel and the lightness alternates between adjacent sections, so
- * neighboring sections stay distinguishable even when the hue step gets small (a
- * 16×16 board's 64 sections are only ~5.6° apart in hue).
+ * neighboring sections stay distinguishable even when the hue step gets small (the
+ * 12×12 board's 16 sections are ~22.5° apart in hue).
  */
 export function sectionColorFor(
   row: number,

@@ -43,8 +43,8 @@ export const NewGamePanel: TelescopeComponent<NewGamePanelState> = (
 /* -------------------------------------------------------------------------- */
 
 /**
- * §5.9: the panel's two controls — the single Board Size select (the six
- * §4.1 sizes, `4×4` … `16×16`, controlled by the view model's local
+ * §5.9: the panel's two controls — the single Board Size select (the five
+ * §4.1 sizes, `4×4` … `12×12`, controlled by the view model's local
  * selection) and the Start button. Pure projection of the view model: no
  * state, no commit logic — each control's handler closure already carries
  * its own move (the select's local update, the Start commit).

@@ -612,7 +612,7 @@ describe("shell state-slice builders (moved from App.tsx)", () => {
 /** The §4.2 defaults, as `main.tsx` holds them (the merge base). */
 const PREFERENCE_DEFAULTS = {
   scalars: { base: 3, dimension: 3, size: 6 },
-  pieceType: "Shapes",
+  pieceType: "Faces",
   hints: {
     fitPieceCount: true,
     pieceCells: false,
@@ -657,7 +657,7 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
     });
     expect(merged.sound).toBe(false);
     // Every other field keeps its default.
-    expect(merged.pieceType).toBe("Shapes");
+    expect(merged.pieceType).toBe("Faces");
     expect(merged.preventInvalidMoves).toBe(true);
     expect(merged.hints).toEqual(PREFERENCE_DEFAULTS.hints);
     expect(merged.scalars).toEqual(PREFERENCE_DEFAULTS.scalars);
@@ -735,7 +735,7 @@ describe("useAppDomain (§4.3/§8.5 mergeStoredPreferences)", () => {
       dimension: 3, // §8.5
       size: 6, // -2 is not a positive integer
     });
-    expect(merged.pieceType).toBe("Shapes"); // "Cats" is not a PieceType
+    expect(merged.pieceType).toBe("Faces"); // "Cats" is not a PieceType
     expect(merged.hints).toEqual(PREFERENCE_DEFAULTS.hints);
     expect(merged.preventInvalidMoves).toBe(true); // "no" is not a boolean
     expect(merged.sound).toBe(true); // null is not a boolean

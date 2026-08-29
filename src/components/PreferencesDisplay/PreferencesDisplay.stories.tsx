@@ -24,7 +24,7 @@ function PreferencesDisplayHost(
 /** §4.2 default preferences — every control at its first-load value. */
 const DEFAULTS = {
   scalars: { base: 3, dimension: 3, size: 6 },
-  pieceType: "Shapes",
+  pieceType: "Faces",
   hints: {
     fitPieceCount: true,
     pieceCells: false,
@@ -48,7 +48,7 @@ const meta = {
 
 export default meta;
 
-/** §4.2 defaults: `pieceType` Shapes, every §5.8 boolean at its first-load value. */
+/** §4.2 defaults: `pieceType` Faces, every §5.8 boolean at its first-load value. */
 export const Default: StoryObj<typeof meta> = {
   args: DEFAULTS,
 };
@@ -56,10 +56,10 @@ export const Default: StoryObj<typeof meta> = {
 /**
  * The §5.8 correction note made concrete: `pieceType` is a categorical
  * "Shapes"/"Faces" choice (a two-option radio row, not a `Switch`), here with
- * "Faces" selected.
+ * "Shapes" selected.
  */
-export const FacesPieceType: StoryObj<typeof meta> = {
-  args: { ...DEFAULTS, pieceType: "Faces" },
+export const ShapesPieceType: StoryObj<typeof meta> = {
+  args: { ...DEFAULTS, pieceType: "Shapes" },
 };
 
 /**
@@ -70,7 +70,7 @@ export const FacesPieceType: StoryObj<typeof meta> = {
 export const AllOff: StoryObj<typeof meta> = {
   args: {
     scalars: { base: 3, dimension: 3, size: 6 },
-    pieceType: "Shapes",
+    pieceType: "Faces",
     hints: {
       fitPieceCount: false,
       pieceCells: false,

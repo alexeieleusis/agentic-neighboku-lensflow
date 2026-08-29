@@ -34,7 +34,7 @@ export interface NewGamePanelSelection {
 /** Everything `RenderNewGamePanel` needs, precomputed by `useNewGamePanelViewModel`. */
 export interface NewGamePanelViewModel {
   /**
-   * §4.1's six selectable board sizes, in select order: 4, 6, 8, 9, 12, 16 —
+   * §4.1's five selectable board sizes, in select order: 4, 6, 8, 9, 12 —
    * no more and no fewer.
    */
   readonly sizes: readonly number[];
