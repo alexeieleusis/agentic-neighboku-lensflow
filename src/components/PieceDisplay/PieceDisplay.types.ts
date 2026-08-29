@@ -1,5 +1,4 @@
-import type { Piece } from "../../game/entities";
-import type { PieceType } from "../CellDisplay/CellDisplay.types.ts";
+import type { Piece, PieceType } from "../../game/entities";
 import type { PieceForm } from "./pieceShapeTables";
 
 /**
